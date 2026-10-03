@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+lambda_build/
+*.zip
+annotated_output.jpg
+test_output.jpg
+*.log
+.env
+.DS_Store
