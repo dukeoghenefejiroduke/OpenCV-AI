@@ -32,7 +32,7 @@ jobs:
     - name: Build Lambda Deployment Package
       run: |
         mkdir -p lambda_build
-        pip install numpy==1.26.4 opencv-python-headless==5.0.0.93 --target lambda_build --no-deps
+        pip install -r requirements-lambda.txt --target lambda_build --only-binary=:all:
         cp lambda_handler.py lambda_build/
         cp -r vision lambda_build/
         
@@ -65,7 +65,7 @@ jobs:
         import cv2
         print('NumPy version:', np.__version__)
         print('OpenCV version:', cv2.__version__)
-        assert np.__version__ == '1.26.4', f'Expected NumPy 1.26.4, got {np.__version__}'
+        assert np.__version__.startswith('2.'), f'Expected NumPy 2.x, got {np.__version__}'
         assert cv2.__version__.startswith('5.0.0'), f'Expected OpenCV 5.0.0, got {cv2.__version__}'
         "
 
