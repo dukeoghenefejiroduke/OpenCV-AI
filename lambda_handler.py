@@ -12,6 +12,7 @@ import traceback
 import cv2
 import numpy as np
 from vision.inspection import inspect_corrosion
+from app.validation import validate_image_input
 
 
 def lambda_handler(event, context):
@@ -88,9 +89,21 @@ def lambda_handler(event, context):
                 })
             }
 
+        # 4.5. Validate image input via validation safety layer
+        is_valid, validated_img, err_msg = validate_image_input(img)
+        if not is_valid:
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({
+                    "success": False,
+                    "error": f"Image validation failed: {err_msg}"
+                })
+            }
+
         # 5. Call existing vision inspection function
         try:
-            inspection_report = inspect_corrosion(img, output_annotated_path=None, output_roi_path=None, use_roi=True)
+            inspection_report = inspect_corrosion(validated_img, output_annotated_path=None, output_roi_path=None, use_roi=True)
         except Exception as e:
             return {
                 "statusCode": 500,

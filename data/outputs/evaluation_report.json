@@ -1,0 +1,118 @@
+{
+  "evaluation_timestamp": "2026-10-06T08:51:21.556094+00:00",
+  "environment": {
+    "python_version": "3.14.6",
+    "numpy_version": "2.4.4",
+    "opencv_version": "4.14.0",
+    "platform": "Android-9-aarch64-64bit-ELF",
+    "architecture": "aarch64"
+  },
+  "real_image_evaluation": {
+    "image_path": "data/pipe_corrosion.jpg",
+    "dimensions": {
+      "width": 1920,
+      "height": 1080
+    },
+    "corrosion_percentage": 6.56,
+    "region_count": 11,
+    "recommendation": "WARNING",
+    "agent_decision": "WARNING",
+    "proposed_action": "Proposed scheduling a routine maintenance inspection and ongoing monitoring.",
+    "approval_required": false,
+    "reason": "Warning-level condition detected: corrosion percentage (6.56%) is within the warning range (2.0% to 10.0%) with 11 region(s) identified."
+  },
+  "robustness_evaluation": [
+    {
+      "scenario": "clean",
+      "description": "Deterministic uniform gray clean surface",
+      "corrosion_percentage": 0.0,
+      "recommendation": "PASS",
+      "decision": "PASS"
+    },
+    {
+      "scenario": "moderate",
+      "description": "Synthetic image with moderate rust-like rectangle",
+      "corrosion_percentage": 7.65,
+      "recommendation": "WARNING",
+      "decision": "WARNING"
+    },
+    {
+      "scenario": "high",
+      "description": "Synthetic image with large rust patch (demonstrates ROI structural rejection limitation)",
+      "corrosion_percentage": 0.0,
+      "recommendation": "PASS",
+      "decision": "PASS"
+    },
+    {
+      "scenario": "dark",
+      "description": "Very dark low-light image",
+      "corrosion_percentage": 0.0,
+      "recommendation": "PASS",
+      "decision": "PASS"
+    },
+    {
+      "scenario": "bright",
+      "description": "Overexposed very bright image",
+      "corrosion_percentage": 0.0,
+      "recommendation": "PASS",
+      "decision": "PASS"
+    },
+    {
+      "scenario": "noisy",
+      "description": "Random noise image with fixed seed",
+      "corrosion_percentage": 0.0,
+      "recommendation": "PASS",
+      "decision": "PASS"
+    },
+    {
+      "scenario": "small",
+      "description": "Tiny 32x32 image boundary test (rejected by input validation safety layer)",
+      "status": "INPUT REJECTED / UNSUITABLE",
+      "corrosion_percentage": 0.0,
+      "recommendation": "REJECTED",
+      "decision": "N/A"
+    }
+  ],
+  "agent_safety_evaluation": {
+    "input_corrosion_percentage": 18.5,
+    "decision": "CRITICAL",
+    "approval_required": true,
+    "action": "Proposed immediate emergency maintenance work-order request. Awaiting supervisor approval.",
+    "reason": "Critical condition detected: corrosion percentage (18.5%) meets or exceeds critical threshold (10.0%) with 5 region(s) identified.",
+    "safe_no_false_dispatch_claim": true
+  },
+  "test_suite_summary": {
+    "total_test_files": 4,
+    "all_passed": true,
+    "details": {
+      "tests/test_inspection.py": {
+        "passed": true,
+        "returncode": 0,
+        "stdout_tail": "All tests passed successfully!"
+      },
+      "tests/test_agent_decision.py": {
+        "passed": true,
+        "returncode": 0,
+        "stdout_tail": "All agent decision & integration tests passed successfully!"
+      },
+      "tests/test_robustness.py": {
+        "passed": true,
+        "returncode": 0,
+        "stdout_tail": "All robustness & failure-case tests passed successfully!"
+      },
+      "tests/test_validation.py": {
+        "passed": true,
+        "returncode": 0,
+        "stdout_tail": "All input validation tests passed successfully!"
+      }
+    }
+  },
+  "limitations": [
+    "Classical structural ROI segmentation depends on visible equipment structure/edges.",
+    "Synthetic high-corrosion rectangles can be rejected by the ROI extent filtering.",
+    "Corrosion percentage is a computer-vision screening estimate, not a certified physical measurement.",
+    "Human approval is required for CRITICAL proposed maintenance action.",
+    "No external maintenance system is actually dispatched by the local agent.",
+    "Input validation enforces a minimum dimension threshold (128x128) to prevent unreliable inspection on undersized images."
+  ]
+}

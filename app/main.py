@@ -4,10 +4,12 @@ import sys
 import cv2
 import numpy as np
 from vision.inspection import inspect_corrosion
+from agent.decision import evaluate_inspection
+from app.validation import validate_image_input
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CementSight AI - Corrosion Inspection MVP with ROI Extent Filtering")
+    parser = argparse.ArgumentParser(description="CementSight AI - Corrosion Inspection MVP with ROI Extent Filtering & Agentic Decision Layer")
     parser.add_argument("image", nargs="?", default=None, help="Path to input industrial equipment image (optional)")
     parser.add_argument("--output-dir", type=str, default="data/outputs", help="Directory to save annotated output images")
     parser.add_argument("--no-roi", action="store_true", help="Disable foreground ROI segmentation (compare against baseline)")
@@ -18,22 +20,27 @@ def main():
 
     if args.image:
         image_path = args.image
-        if not os.path.exists(image_path):
-            print(f"Error: Image path '{image_path}' does not exist.", file=sys.stderr)
+
+        print(f"Inspecting image: {image_path} (ROI Segmentation: {not args.no_roi})")
+        
+        # 1. Validate image input at application boundary
+        is_valid, decoded_img, err_msg = validate_image_input(image_path)
+        if not is_valid:
+            print(f"Error: Image validation failed: {err_msg}", file=sys.stderr)
             sys.exit(1)
 
         base_name = os.path.basename(image_path)
         output_path = os.path.join(args.output_dir, f"annotated_{base_name}")
         roi_output_path = os.path.join(args.output_dir, "foreground_roi.jpg")
 
-        print(f"Inspecting image: {image_path} (ROI Segmentation: {not args.no_roi})")
         try:
             report = inspect_corrosion(
-                image_path,
+                decoded_img,
                 output_annotated_path=output_path,
                 output_roi_path=roi_output_path,
                 use_roi=not args.no_roi
             )
+            decision = evaluate_inspection(report)
             
             print("\n=== CEMENTSIGHT AI INSPECTION REPORT ===")
             print(f"Recommendation             : {report['recommendation']}")
@@ -58,6 +65,13 @@ def main():
             print(f"Output Image               : {output_path}")
             print(f"Diagnostic ROI Mask        : {roi_output_path}")
             print("=========================================\n")
+
+            print("=== CEMENTSIGHT AI AGENT DECISION ===")
+            print(f"Decision                   : {decision.decision}")
+            print(f"Proposed Action            : {decision.action}")
+            print(f"Approval Required          : {decision.approval_required}")
+            print(f"Reason                     : {decision.reason}")
+            print("=====================================\n")
         except Exception as e:
             print(f"Error during inspection: {e}", file=sys.stderr)
             sys.exit(1)
@@ -69,12 +83,18 @@ def main():
         syn_img = np.full((300, 300, 3), 180, dtype=np.uint8)
         cv2.rectangle(syn_img, (100, 100), (180, 180), (30, 100, 180), -1)
 
+        is_valid, validated_syn, err_msg = validate_image_input(syn_img)
+        if not is_valid:
+            print(f"Error: Synthetic image validation failed: {err_msg}", file=sys.stderr)
+            sys.exit(1)
+
         report = inspect_corrosion(
-            syn_img,
+            validated_syn,
             output_annotated_path=output_path,
             output_roi_path=roi_output_path,
             use_roi=True
         )
+        decision = evaluate_inspection(report)
 
         print("\n=== CEMENTSIGHT AI SYNTHETIC REPORT ===")
         print(f"Recommendation             : {report['recommendation']}")
@@ -89,6 +109,13 @@ def main():
         print(f"Output Image               : {output_path}")
         print(f"Diagnostic ROI Mask        : {roi_output_path}")
         print("=======================================\n")
+
+        print("=== CEMENTSIGHT AI AGENT DECISION ===")
+        print(f"Decision                   : {decision.decision}")
+        print(f"Proposed Action            : {decision.action}")
+        print(f"Approval Required          : {decision.approval_required}")
+        print(f"Reason                     : {decision.reason}")
+        print("=====================================\n")
 
 
 if __name__ == "__main__":
