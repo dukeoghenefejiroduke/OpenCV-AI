@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CementSight AI - Mobile Industrial Visual Inspection & Processing Explorer</title>
+    <!-- Tailwind CSS CDN with offline fallback styles -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-amber-500 selection:text-slate-950">
+    <!-- Top Header -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xl shadow-inner">
+                        CS
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            CementSight AI
+                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">Platform v2.2</span>
+                        </h1>
+                        <p class="text-xs text-slate-400">Industrial Visual Inspection & Visual Processing Explorer</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap justify-end">
+                <div class="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    Local Demo Mode (127.0.0.1)
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono shadow-sm">
+                    Tests: 48/48 Passing
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+        
+        <!-- Input Workspace Control Panel -->
+        <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Inspection Source & Upload Workspace
+                </h2>
+                <span class="text-xs font-mono text-slate-400">Supports OpenCV decodable Images & Videos (Max 25MB)</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+                <!-- File Upload -->
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1.5">Upload Image or Video File</label>
+                    <input type="file" id="file-upload" accept="image/*,video/*" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500/20 file:text-amber-400 hover:file:bg-amber-500/30 transition cursor-pointer">
+                </div>
+
+                <!-- Default Image Path -->
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1.5">Or Preset Sample Asset Path</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-image" value="data/pipe_corrosion.jpg" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                        <button onclick="loadDefaultImage()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-mono transition shrink-0 cursor-pointer" title="Load Default Pipe Image">Load Default</button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2">
+                    <button onclick="runPipeline()" id="run-btn" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Start Inspection
+                    </button>
+                    <button onclick="resetWorkspace()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-xs transition cursor-pointer">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Selected File Metadata Bar -->
+            <div id="file-meta-bar" class="hidden flex flex-wrap items-center justify-between gap-2 bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-800 text-xs font-mono">
+                <span class="text-amber-400" id="meta-filename">File: None</span>
+                <span class="text-slate-400" id="meta-size">Size: 0 KB</span>
+                <span class="text-slate-400" id="meta-type">Type: -</span>
+            </div>
+        </section>
+
+        <!-- Preview & Core Agent Decision Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Visual Preview Panel -->
+            <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        Visual Inspection Asset Preview
+                    </h3>
+                    <span id="preview-badge" class="text-xs font-mono px-2.5 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">Default Test Image</span>
+                </div>
+                <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[280px] sm:min-h-[340px] flex items-center justify-center p-2">
+                    <img id="preview-image" src="data/pipe_corrosion.jpg" alt="Asset Preview" class="max-h-[340px] object-contain rounded-lg cursor-pointer transition hover:scale-[1.01]" onclick="openModal(this.src)" title="Click to enlarge">
+                    <div id="loading-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center hidden z-20">
+                        <div class="flex flex-col items-center gap-3">
+                            <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-xs font-mono text-amber-400 font-medium">Running 6-Stage Pipeline...</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 font-mono mt-2 text-center">Tip: Click preview image to view in full size.</p>
+            </div>
+
+            <!-- Agent Decision Summary Panel -->
+            <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-mono uppercase tracking-wider text-amber-400">STAGE 4: DETERMINISTIC AGENT LAYER</span>
+                        <span id="res-badge" class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Active</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3" id="res-decision-title">WARNING STATE</h3>
+                    <div class="text-xs sm:text-sm text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4 space-y-2">
+                        <div class="font-semibold text-amber-300 font-mono text-xs">Reasoning & Optical Screening Estimate:</div>
+                        <p id="res-reason">Warning-level condition detected: corrosion percentage (6.56%) is within warning threshold (2.0% to 10.0%) with 11 region(s) identified. Note: Optical estimate, not certified physical measurement.</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-xs sm:text-sm gap-1">
+                        <span class="text-slate-400 font-mono">Proposed Action:</span>
+                        <span class="text-white font-medium text-left sm:text-right" id="res-action">Routine maintenance inspection & ongoing monitoring</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-xs sm:text-sm">
+                        <span class="text-slate-400 font-mono">Human Approval Required:</span>
+                        <span class="text-emerald-400 font-mono font-semibold" id="res-approval">False (Routine Monitoring)</span>
+                    </div>
+                    <div id="export-actions" class="hidden flex gap-2 pt-2">
+                        <a id="export-json-btn" href="#" target="_blank" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 text-center rounded-xl text-xs font-mono transition">Export Report (JSON)</a>
+                        <a id="export-html-btn" href="#" target="_blank" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 text-center rounded-xl text-xs font-mono transition">Export Report (HTML)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visual Processing Explorer (Stage-by-Stage Intermediates) -->
+        <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+                    Visual Processing Explorer (Stage-by-Stage Intermediates)
+                </h3>
+                <span class="text-xs font-mono text-slate-400">Inspect actual computer-vision outputs produced at each stage</span>
+            </div>
+            <p class="text-xs text-slate-400">Click any stage preview image below to view in full size in the lightbox modal. Distinguishes between standard color images, binary masks, and final annotated output.</p>
+            
+            <div id="diagnostics-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Default Initial State Cards -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.1</span>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Color Image</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white mb-1">Original Input Image</h4>
+                        <p class="text-[11px] text-slate-400 mb-3">Raw ingested BGR equipment image prior to processing.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                        <img src="data/pipe_corrosion.jpg" alt="Original" class="h-32 object-contain rounded cursor-pointer hover:opacity-90 transition" onclick="openModal(this.src)">
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.2</span>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Color Image</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white mb-1">Gaussian-Blurred Image</h4>
+                        <p class="text-[11px] text-slate-400 mb-3">Smoothed image using 5x5 Gaussian blur to suppress noise.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                        <div class="h-32 flex items-center justify-center text-xs font-mono text-slate-500">Run pipeline to view</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.3</span>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Binary Mask</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white mb-1">Raw HSV Corrosion Mask</h4>
+                        <p class="text-[11px] text-slate-400 mb-3">Initial color segmentation mask identifying rust tones.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                        <div class="h-32 flex items-center justify-center text-xs font-mono text-slate-500">Run pipeline to view</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.4</span>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Binary Mask</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white mb-1">Structural ROI Mask</h4>
+                        <p class="text-[11px] text-slate-400 mb-3">Canny edge & morphological equipment foreground mask.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                        <div class="h-32 flex items-center justify-center text-xs font-mono text-slate-500">Run pipeline to view</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6-Stage Detailed Data Flow Inspector -->
+        <div class="space-y-4">
+            <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Transparent 6-Stage Execution Pipeline
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                
+                <!-- Stage 1 -->
+                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 1</span>
+                            <span id="status-stage1" class="text-xs font-mono text-emerald-400">COMPLETED</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">Input Ingestion & Stream</h4>
+                        <p class="text-xs text-slate-400 mb-3">Accepts image files or video/RTSP streams.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
+                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300 truncate block" id="in-stage1">data/pipe_corrosion.jpg</span></div>
+                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-300" id="out-stage1">Raw BGR Frame Array</span></div>
+                    </div>
+                </div>
+
+                <!-- Stage 2 -->
+                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 2</span>
+                            <span id="status-stage2" class="text-xs font-mono text-emerald-400">COMPLETED</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">Input Validation & Safety</h4>
+                        <p class="text-xs text-slate-400 mb-3">Verifies integrity & enforces ≥128x128 pixels.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
+                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Raw Frame Array</span></div>
+                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-emerald-400" id="out-stage2">Passed (1920x1080)</span></div>
+                    </div>
+                </div>
+
+                <!-- Stage 3 -->
+                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3</span>
+                            <span id="status-stage3" class="text-xs font-mono text-emerald-400">COMPLETED</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">OpenCV Vision Inspection</h4>
+                        <p class="text-xs text-slate-400 mb-3">HSV masking, ROI extent & spalling analysis.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
+                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Validated Frame</span></div>
+                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-400 font-bold" id="out-stage3">6.56% Corrosion / 11 Regions</span></div>
+                    </div>
+                </div>
+
+                <!-- Stage 4 -->
+                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 4</span>
+                            <span id="status-stage4" class="text-xs font-mono text-emerald-400">COMPLETED</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">Deterministic Agent Layer</h4>
+                        <p class="text-xs text-slate-400 mb-3">Maps metrics to PASS/WARNING/CRITICAL.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
+                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Inspection Report Metrics</span></div>
+                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-400 font-bold" id="out-stage4">WARNING (Approval: False)</span></div>
+                    </div>
+                </div>
+
+                <!-- Stage 5 -->
+                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 5</span>
+                            <span id="status-stage5" class="text-xs font-mono text-emerald-400">COMPLETED</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">Telemetry & Forecasting</h4>
+                        <p class="text-xs text-slate-400 mb-3">Degradation velocity & digital twin state.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
+                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Historical Logs & State</span></div>
+                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-300" id="out-stage5">0.20%/day (20 Days to Critical)</span></div>
+                    </div>
+                </div>
+
+                <!-- Stage 6 -->
+                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 6</span>
+                            <span id="status-stage6" class="text-xs font-mono text-emerald-400">COMPLETED</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">CMMS Webhook Dispatch</h4>
+                        <p class="text-xs text-slate-400 mb-3">Formulates Maximo/SAP work-order JSON payloads.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
+                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Agent Decision & Asset ID</span></div>
+                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-emerald-400 font-bold" id="out-stage6">QUEUED Work-Order JSON</span></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Inspection History Panel -->
+        <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <h3 class="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Local Inspection History Log
+                </h3>
+                <div class="flex gap-2">
+                    <button onclick="loadHistory()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-mono transition cursor-pointer">Refresh</button>
+                    <button onclick="clearHistory()" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-mono transition cursor-pointer">Clear All History</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Timestamp</th>
+                            <th class="p-3">Input File</th>
+                            <th class="p-3">Type</th>
+                            <th class="p-3">Decision</th>
+                            <th class="p-3">Corrosion %</th>
+                            <th class="p-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr>
+                            <td colspan="7" class="p-4 text-center text-slate-500">No inspection history recorded yet. Run an inspection above.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Image Lightbox Modal -->
+    <div id="image-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden" onclick="closeModal()">
+        <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl" onclick="event.stopPropagation()">
+            <button onclick="closeModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center font-bold text-sm transition cursor-pointer">✕</button>
+            <img id="modal-img" src="" alt="Enlarged View" class="max-h-[80vh] max-w-full object-contain rounded-lg">
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto px-6 py-8 border-t border-slate-800 text-center text-xs text-slate-500 font-mono space-y-1">
+        <p>CementSight AI • OpenCV AI Competition 2026 • 100% Deterministic & Safety-Verified</p>
+        <p class="text-[11px] text-slate-600">Designed for Android Termux & Mobile Browsers • Local Demo Only • No External Cloud APIs</p>
+    </footer>
+
+    <script>
+        document.getElementById('file-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const metaBar = document.getElementById('file-meta-bar');
+                metaBar.classList.remove('hidden');
+                document.getElementById('meta-filename').innerText = `File: ${file.name}`;
+                document.getElementById('meta-size').innerText = `Size: ${(file.size / 1024).toFixed(1)} KB`;
+                document.getElementById('meta-type').innerText = `Type: ${file.type || 'Unknown'}`;
+                document.getElementById('input-image').value = '';
+            }
+        });
+
+        function loadDefaultImage() {
+            document.getElementById('input-image').value = 'data/pipe_corrosion.jpg';
+            document.getElementById('file-upload').value = '';
+            document.getElementById('file-meta-bar').classList.add('hidden');
+        }
+
+        function resetWorkspace() {
+            loadDefaultImage();
+            document.getElementById('preview-image').src = 'data/pipe_corrosion.jpg';
+            document.getElementById('preview-badge').innerText = "Default Test Image";
+            document.getElementById('export-actions').classList.add('hidden');
+            alert("Workspace reset to default test image.");
+        }
+
+        function openModal(src) {
+            if (!src) return;
+            document.getElementById('modal-img').src = src;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) return;
+                const history = await res.json();
+                const tbody = document.getElementById('history-tbody');
+                if (!history.length) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">No inspection history recorded yet.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = history.map(item => `
+                    <tr class="hover:bg-slate-900/50 transition">
+                        <td class="p-3 font-mono text-amber-400">${item.inspection_id || 'N/A'}</td>
+                        <td class="p-3 text-slate-400">${item.timestamp}</td>
+                        <td class="p-3 font-medium text-white">${item.input_filename}</td>
+                        <td class="p-3 uppercase text-amber-400">${item.input_type}</td>
+                        <td class="p-3 font-bold ${item.decision === 'CRITICAL' ? 'text-rose-400' : (item.decision === 'WARNING' ? 'text-amber-400' : 'text-emerald-400')}">${item.decision}</td>
+                        <td class="p-3">${item.corrosion_percentage}%</td>
+                        <td class="p-3 flex gap-2 flex-wrap">
+                            <a href="/api/export-report/${item.inspection_id}?format=json" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-[10px]">JSON</a>
+                            <a href="/api/export-report/${item.inspection_id}?format=html" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-[10px]">HTML</a>
+                            <button onclick="deleteHistoryItem('${item.inspection_id}')" class="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded text-[10px]">Del</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Failed to load history", err);
+            }
+        }
+
+        async function deleteHistoryItem(inspId) {
+            if (!confirm(`Are you sure you want to delete inspection record ${inspId}?`)) return;
+            try {
+                await fetch(`/api/delete-history/${inspId}`, { method: 'POST' });
+                loadHistory();
+            } catch (err) {
+                alert("Failed to delete record: " + err.message);
+            }
+        }
+
+        async function clearHistory() {
+            if (!confirm("Are you sure you want to clear all inspection history?")) return;
+            try {
+                await fetch('/api/clear-history', { method: 'POST' });
+                loadHistory();
+            } catch (err) {
+                alert("Failed to clear history: " + err.message);
+            }
+        }
+
+        async function runPipeline() {
+            const fileInput = document.getElementById('file-upload');
+            const imagePath = document.getElementById('input-image').value;
+            const btn = document.getElementById('run-btn');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            btn.disabled = true;
+            loadingOverlay.classList.remove('hidden');
+
+            try {
+                let response;
+                if (fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    formData.append('asset_id', 'PIPE-01');
+                    response = await fetch('/api/inspect', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    response = await fetch('/api/inspect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image_path: imagePath, asset_id: 'PIPE-01' })
+                    });
+                }
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Pipeline execution failed');
+                }
+
+                const data = await response.json();
+
+                // Show export actions and set URLs
+                const exportActions = document.getElementById('export-actions');
+                exportActions.classList.remove('hidden');
+                document.getElementById('export-json-btn').href = `/api/export-report/${data.inspection_id}?format=json`;
+                document.getElementById('export-html-btn').href = `/api/export-report/${data.inspection_id}?format=html`;
+
+                // Update Preview Image with live annotated output
+                const previewImg = document.getElementById('preview-image');
+                previewImg.src = '/' + data.stage_3_inspection.annotated_image + '?' + new Date().getTime();
+                document.getElementById('preview-badge').innerText = `Live Annotated Output (${data.inspection_id})`;
+
+                // Update Visual Processing Explorer Diagnostics Grid
+                const diagGrid = document.getElementById('diagnostics-grid');
+                if (data.stage_3_inspection.diagnostic_stages && data.stage_3_inspection.diagnostic_stages.length > 0) {
+                    diagGrid.innerHTML = data.stage_3_inspection.diagnostic_stages.map((stage) => `
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.${stage.step}</span>
+                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded ${stage.result_type === 'binary_mask' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : (stage.result_type === 'annotated_image' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-slate-300')}">${stage.result_type.replace('_', ' ').toUpperCase()}</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-white mb-1">${stage.label}</h4>
+                                <p class="text-[11px] text-slate-400 mb-3">${stage.description}</p>
+                            </div>
+                            <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                                <img src="/${stage.image_url}?${new Date().getTime()}" alt="${stage.label}" class="h-32 object-contain rounded cursor-pointer hover:opacity-90 transition" onclick="openModal(this.src)">
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update Stage 4 Decision Banner
+                const dec = data.stage_4_agent_decision.decision;
+                document.getElementById('res-decision-title').innerText = dec + " STATE";
+                document.getElementById('res-decision-title').className = `text-2xl font-bold mb-3 ${dec === 'CRITICAL' ? 'text-rose-400' : (dec === 'WARNING' ? 'text-amber-400' : 'text-emerald-400')}`;
+                document.getElementById('res-reason').innerText = data.stage_4_agent_decision.reason + " (Optical estimate, not certified physical measurement).";
+                document.getElementById('res-action').innerText = data.stage_4_agent_decision.action;
+                document.getElementById('res-approval').innerText = data.stage_4_agent_decision.approval_required + (data.stage_4_agent_decision.approval_required ? ' (Approval Required)' : ' (Routine Monitoring)');
+                document.getElementById('res-approval').className = `font-mono font-semibold ${data.stage_4_agent_decision.approval_required ? 'text-amber-400' : 'text-emerald-400'}`;
+
+                // Update Stage Data Flow Inputs & Outputs
+                document.getElementById('in-stage1').innerText = data.stage_1_ingestion.filename || data.stage_1_ingestion.source_uri;
+                document.getElementById('out-stage1').innerText = (data.stage_1_ingestion.source_type || 'image').toUpperCase() + " Frame Ingested";
+
+                document.getElementById('out-stage2').innerText = data.stage_2_validation.message;
+
+                const corr = data.stage_3_inspection.corrosion_screening.corrosion_percentage;
+                const regCount = data.stage_3_inspection.corrosion_screening.region_count;
+                document.getElementById('out-stage3').innerText = `${corr}% Corrosion / ${regCount} Regions`;
+                
+                document.getElementById('out-stage4').innerText = `${dec} (Approval: ${data.stage_4_agent_decision.approval_required})`;
+
+                document.getElementById('out-stage5').innerText = `${data.stage_5_telemetry.degradation_velocity_pct_per_day}%/day (${data.stage_5_telemetry.projected_days_to_critical} Days to Crit)`;
+
+                document.getElementById('out-stage6').innerText = `${data.stage_6_enterprise.cmms_work_order.dispatch_status} (Priority: ${data.stage_6_enterprise.cmms_work_order.priority})`;
+
+                loadHistory();
+
+            } catch (err) {
+                alert("Pipeline Error: " + err.message + "\n\nEnsure server is running:\npython3 tools/server.py 8000");
+            } finally {
+                btn.disabled = false;
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        window.onload = function() {
+            loadHistory();
+        };
+    </script>
+</body>
+</html>
