@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CementSightFieldValidationRecord",
+  "type": "object",
+  "required": [
+    "image_id",
+    "image_path",
+    "provenance",
+    "hazard_category",
+    "annotation_status",
+    "label",
+    "dataset_split",
+    "reviewer_id",
+    "annotation_timestamp"
+  ],
+  "properties": {
+    "image_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_\\-]+$"
+    },
+    "image_path": {
+      "type": "string"
+    },
+    "provenance": {
+      "type": "string",
+      "enum": ["real", "synthetic", "generated", "fixture"]
+    },
+    "eligible_for_real_world_evaluation": {
+      "type": "boolean"
+    },
+    "hazard_category": {
+      "type": "string",
+      "enum": [
+        "corrosion",
+        "crack",
+        "surface_defect",
+        "leakage",
+        "insulation",
+        "clean_negative"
+      ]
+    },
+    "annotation_status": {
+      "type": "string",
+      "enum": [
+        "annotated",
+        "unreviewed",
+        "ambiguous",
+        "insufficient_evidence"
+      ]
+    },
+    "label": {
+      "type": "string",
+      "enum": ["positive", "negative", "ambiguous"]
+    },
+    "dataset_split": {
+      "type": "string",
+      "enum": ["development", "validation", "held_out_test"]
+    },
+    "grouping_id": {
+      "type": "string"
+    },
+    "image_dimensions": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "capture_conditions": {
+      "type": "object",
+      "properties": {
+        "lighting": { "type": "string" },
+        "resolution": { "type": "string" },
+        "angle": { "type": "string" },
+        "confounders": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "bounding_boxes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["x_min", "y_min", "x_max", "y_max", "defect_type"],
+        "properties": {
+          "x_min": { "type": "number", "minimum": 0 },
+          "y_min": { "type": "number", "minimum": 0 },
+          "x_max": { "type": "number", "minimum": 0 },
+          "y_max": { "type": "number", "minimum": 0 },
+          "defect_type": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "reviewer_id": {
+      "type": "string"
+    },
+    "annotation_timestamp": {
+      "type": "string"
+    },
+    "adjudication_notes": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "retrieval_date": {
+      "type": "string"
+    }
+  }
+}

@@ -10,6 +10,13 @@ allowlist = [
     "app/main.py",
     "app/validation.py",
     "agent/decision.py",
+    "vision/contract.py",
+    "vision/corrosion_detector.py",
+    "vision/crack_detector.py",
+    "vision/surface_defect_detector.py",
+    "vision/leakage_detector.py",
+    "vision/insulation_detector.py",
+    "vision/orchestrator.py",
     "vision/diagnostics.py",
     "vision/inspection.py",
     "vision/spalling.py",
@@ -22,6 +29,10 @@ allowlist = [
     "tests/test_dashboard.py",
     "tests/test_diagnostics.py",
     "tests/test_inspection.py",
+    "tests/test_multi_hazard.py",
+    "tests/test_surface_defect_detector.py",
+    "tests/test_leakage_detector.py",
+    "tests/test_insulation_detector.py",
     "tests/test_robustness.py",
     "tests/test_validation.py",
     "docs/architecture.md",
@@ -39,7 +50,7 @@ allowlist = [
 
 release_dir = "/data/data/com.termux/files/home/.gemini/tmp/cementsight-ai/release"
 os.makedirs(release_dir, exist_ok=True)
-zip_name = "cementsight-ai-v1.0.0-source.zip"
+zip_name = "cementsight-ai-v1.1.0-source.zip"
 zip_path = os.path.join(release_dir, zip_name)
 
 print(f"Creating release archive at {zip_path}...")

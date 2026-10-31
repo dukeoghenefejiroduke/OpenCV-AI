@@ -5,7 +5,7 @@ import subprocess
 import shutil
 
 release_dir = "/data/data/com.termux/files/home/.gemini/tmp/cementsight-ai/release"
-zip_name = "cementsight-ai-v1.0.0-source.zip"
+zip_name = "cementsight-ai-v1.1.0-source.zip"
 zip_path = os.path.join(release_dir, zip_name)
 checksum_path = zip_path + ".sha256"
 

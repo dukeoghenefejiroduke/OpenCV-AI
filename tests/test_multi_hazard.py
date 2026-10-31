@@ -101,4 +101,7 @@ def test_multi_hazard_orchestrator():
     assert "detectors" in platform_report
     assert "corrosion_detector" in platform_report["detectors"]
     assert "crack_screening_detector" in platform_report["detectors"]
-    assert len(platform_report["detector_summaries"]) == 2
+    assert "surface_defect_detector" in platform_report["detectors"]
+    assert "leakage_detector" in platform_report["detectors"]
+    assert "insulation_detector" in platform_report["detectors"]
+    assert len(platform_report["detector_summaries"]) == 5

@@ -8,18 +8,24 @@ between production corrosion rules and experimental screening modules.
 from typing import Dict, Any, List, Optional
 import numpy as np
 
-from vision.contract import BaseDetector, validate_finding
+from vision.contract import BaseDetector, validate_finding, STATUS_DETECTOR_FAILED
 from vision.corrosion_detector import CorrosionDetector
 from vision.crack_detector import CrackDetector
+from vision.surface_defect_detector import SurfaceDefectDetector
+from vision.leakage_detector import LeakageDetector
+from vision.insulation_detector import InsulationDetector
 
 
 class MultiHazardOrchestrator:
-    """Orchestrates multiple modular vision detectors."""
+    """Orchestrates multiple modular vision detectors with strict fault isolation."""
 
     def __init__(self):
         self.detectors: List[BaseDetector] = [
             CorrosionDetector(),
-            CrackDetector()
+            CrackDetector(),
+            SurfaceDefectDetector(),
+            LeakageDetector(),
+            InsulationDetector()
         ]
 
     def register_detector(self, detector: BaseDetector):
@@ -27,7 +33,7 @@ class MultiHazardOrchestrator:
         self.detectors.append(detector)
 
     def run_inspections(self, image: np.ndarray, **kwargs) -> Dict[str, Any]:
-        """Runs all registered detectors on the input image.
+        """Runs all registered detectors on the input image with fault isolation.
 
         Args:
             image: BGR numpy array or image path.
@@ -41,7 +47,24 @@ class MultiHazardOrchestrator:
         detector_summaries = []
 
         for detector in self.detectors:
-            res = detector.detect(image, **kwargs)
+            try:
+                res = detector.detect(image, **kwargs)
+                if not isinstance(res, dict):
+                    raise TypeError(f"Detector returned non-dictionary type: {type(res)}")
+            except Exception as e:
+                res = {
+                    "detector_id": detector.detector_id,
+                    "detector_name": detector.detector_name,
+                    "version": detector.version,
+                    "defect_category": detector.defect_category,
+                    "supported_input_type": detector.supported_input_type,
+                    "execution_status": STATUS_DETECTOR_FAILED,
+                    "findings": [],
+                    "errors": [str(e)],
+                    "limitations": ["Detector execution failed due to an unhandled runtime exception or invalid contract return type."],
+                    "metadata": {}
+                }
+
             # Validate findings in result
             valid_findings = []
             img_shape = image.shape[:2] if isinstance(image, np.ndarray) else None
@@ -50,7 +73,7 @@ class MultiHazardOrchestrator:
                 if is_valid:
                     valid_findings.append(f)
                 else:
-                    # Log or handle invalid finding if needed
+                    # Invalid or malformed findings are filtered out for safety
                     pass
             res["findings"] = valid_findings
             results[detector.detector_id] = res
