@@ -13,7 +13,7 @@ The system architecture features:
 - **Human-in-the-Loop Oversight:** Mandatory `approval_required=True` gating for `CRITICAL` conditions, preventing automated or unsafe external work-order dispatch.
 - **Cloud-Ready AWS Lambda Architecture:** Containerized and CI-verified serverless architecture (`lambda_handler.py`, `.github/workflows/build-lambda.yml`) designed for scalable, stateless execution on Linux x86_64 with OpenCV 5.
 
-*Current Deployment Status:* The codebase, test suite (34/34 passing), evaluation harness, and Lambda deployment packaging are fully implemented and verified in CI. Live AWS deployment is currently **PENDING ACCOUNT ACTIVATION**. CementSight is positioned as a screening and decision-support system and must not be oversold as a certified, autonomous industrial inspection authority.
+*Current Deployment Status:* The codebase, test suite (82/82 passing across 15 test modules), evaluation harness, and Lambda deployment packaging are fully implemented and verified in CI. Live AWS deployment is currently **PENDING ACCOUNT ACTIVATION**. CementSight is positioned as a screening and decision-support system and must not be oversold as a certified, autonomous industrial inspection authority.
 
 ---
 
@@ -200,15 +200,26 @@ The evaluation harness (`tools/evaluate.py`) assesses system behavior across a b
 - **Proposed Action:** `Proposed scheduling a routine maintenance inspection and ongoing monitoring.`
 
 ### Test Suite Execution Summary
-All tests executed via `PYTHONPATH=. python3 tests/...` pass successfully:
+All tests executed via `PYTHONPATH=. python -m pytest` pass successfully (82 total tests across 15 test modules):
 
-| Test Script | Passing Tests | Status |
-| :--- | :---: | :---: |
-| `tests/test_inspection.py` | 6 / 6 | PASSED |
-| `tests/test_agent_decision.py` | 9 / 9 | PASSED |
-| `tests/test_robustness.py` | 12 / 12 | PASSED |
-| `tests/test_validation.py` | 7 / 7 | PASSED |
-| **Total Test Suite** | **34 / 34** | **PASSED** |
+| Test Module | Test Coverage / Focus | Status |
+| :--- | :--- | :---: |
+| `tests/test_advanced_features.py` | Advanced degradation forecasting & digital twin | PASSED |
+| `tests/test_agent_decision.py` | Agent decision rules & E2E workflows | PASSED |
+| `tests/test_cross_hazard_benchmark.py` | Cross-hazard benchmark suite | PASSED |
+| `tests/test_dashboard.py` | Web dashboard UI integration | PASSED |
+| `tests/test_diagnostics.py` | Vision diagnostics stage logging | PASSED |
+| `tests/test_field_validation.py` | Field validation dataset manifest | PASSED |
+| `tests/test_inspection.py` | OpenCV inspection & Lambda adapter | PASSED |
+| `tests/test_insulation_detector.py` | Insulation damage screening | PASSED |
+| `tests/test_leakage_detector.py` | Leakage & seepage indicator screening | PASSED |
+| `tests/test_measurement_reliability.py`| Measurement reliability & metrics | PASSED |
+| `tests/test_multi_hazard.py` | Multi-hazard orchestrator | PASSED |
+| `tests/test_robustness.py` | 12-category robustness & edge cases | PASSED |
+| `tests/test_safety_isolation.py` | Safety isolation verification | PASSED |
+| `tests/test_surface_defect_detector.py` | Surface defect & spalling screening | PASSED |
+| `tests/test_validation.py` | Input safety validation layer | PASSED |
+| **Total Test Suite** | **82 Tests across 15 Modules** | **PASSED** |
 
 ### Key Behavioral Findings
 - Tiny `32x32` images are correctly rejected as `INPUT_REJECTED / UNSUITABLE`.

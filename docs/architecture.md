@@ -130,9 +130,20 @@ The agentic decision layer enforces strict safety invariants:
 
 ## 8. Reproducibility & Testing
 
-CementSight maintains 100% test coverage across 34 automated tests:
-- `tests/test_inspection.py` (Vision & Lambda adapter tests)
+CementSight maintains 100% test coverage across 82 automated tests across 15 comprehensive test modules:
+- `tests/test_advanced_features.py` (Advanced degradation forecasting & digital twin tests)
 - `tests/test_agent_decision.py` (Agent decision unit & E2E tests)
+- `tests/test_cross_hazard_benchmark.py` (Cross-hazard benchmark tests)
+- `tests/test_dashboard.py` (Dashboard UI tests)
+- `tests/test_diagnostics.py` (Vision diagnostics stage tests)
+- `tests/test_field_validation.py` (Field validation dataset manifest tests)
+- `tests/test_inspection.py` (Vision & Lambda adapter tests)
+- `tests/test_insulation_detector.py` (Insulation damage detector tests)
+- `tests/test_leakage_detector.py` (Leakage/seepage detector tests)
+- `tests/test_measurement_reliability.py` (Measurement reliability tests)
+- `tests/test_multi_hazard.py` (Multi-hazard orchestrator tests)
 - `tests/test_robustness.py` (12-category robustness & failure cases)
+- `tests/test_safety_isolation.py` (Safety isolation tests)
+- `tests/test_surface_defect_detector.py` (Surface defect / spalling detector tests)
 - `tests/test_validation.py` (Input safety validation tests)
 - `tools/evaluate.py` (Reproducible evaluation harness producing `data/outputs/evaluation_report.json`)

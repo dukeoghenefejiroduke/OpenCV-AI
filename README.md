@@ -37,16 +37,16 @@ The system combines classical computer vision (OpenCV) with a deterministic, rul
 
 ## Key Features
 
-- **OpenCV-Based Corrosion Screening:** Robust color segmentation tailored for rust and orange-brown surface staining.
+- **OpenCV-Based Multi-Hazard Screening:** Robust classical computer vision pipelines for corrosion, structural cracks, surface defects (blistering/spalling), leakage/seepage, and insulation damage.
 - **Structural Foreground ROI Detection:** Edge detection and morphological grouping to isolate equipment boundaries.
 - **Extent & Noise Filtering:** Rejection of tiny background artifacts and giant frame-spanning background contours.
-- **Region Detection & Bounding Boxes:** Accurate bounding box extraction and region counting for identified corrosion clusters.
+- **Region Detection & Bounding Boxes:** Accurate bounding box extraction and region counting for identified hazard clusters.
 - **Deterministic Agent Decision Layer:** Rule-based classification producing CRITICAL, WARNING, or PASS operational states.
 - **Human Approval Enforcement:** Mandatory supervisor review and approval before any CRITICAL maintenance work-order proposal can proceed.
 - **Input Validation & Safety Layer:** Dimension sanity checks (minimum 128x128 pixels) to prevent unreliable inspection on undersized or corrupt images.
 - **AWS Lambda Adapter:** Ready-to-deploy serverless adapter supporting Function URLs with structured JSON error handling (HTTP 400/200).
 - **Reproducible Evaluation Harness:** Automated evaluation script (`tools/evaluate.py`) capturing environment metrics, performance, robustness, and safety evidence.
-- **Comprehensive Automated Tests:** 34 robust unit, integration, robustness, and validation test cases.
+- **Comprehensive Automated Tests:** 82 robust unit, integration, multi-hazard, robustness, and validation test cases.
 
 ---
 
@@ -121,7 +121,7 @@ Evaluated against the real industrial test image (`data/pipe_corrosion.jpg`):
 | **Proposed action** | Routine maintenance inspection and ongoing monitoring |
 | **Approval required** | `No` |
 
-**Test Suite Summary:** `34/34` tests passed successfully across all inspection, agent, robustness, and validation suites.
+**Test Suite Summary:** `82/82` tests passed successfully across all inspection, agent, multi-hazard, robustness, and validation suites.
 
 ---
 
@@ -190,19 +190,47 @@ cementsight-ai/
 ├── agent/
 │   └── decision.py          # Deterministic rule-based agentic decision layer
 ├── app/
+│   ├── cmms.py              # CMMS work-order integration module
+│   ├── dashboard.html       # Web dashboard interface
+│   ├── digital_twin.py      # Digital twin asset status mapping
+│   ├── forecasting.py       # Degradation velocity & time-to-critical projections
 │   ├── main.py              # Integrated CLI workflow application
 │   └── validation.py        # Input safety validation layer
 ├── vision/
-│   └── inspection.py        # Frozen OpenCV corrosion inspection pipeline
+│   ├── contract.py          # Vision detector interfaces & data contracts
+│   ├── corrosion_detector.py # Corrosion inspection pipeline
+│   ├── crack_detector.py    # Crack screening detector
+│   ├── diagnostics.py       # Vision diagnostic stage recording
+│   ├── inspection.py        # Main inspection orchestrator
+│   ├── insulation_detector.py # Insulation damage detector
+│   ├── leakage_detector.py  # Leakage / seepage indicator detector
+│   ├── orchestrator.py      # Multi-hazard orchestrator
+│   ├── spalling.py          # Spalling / surface defect detector
+│   ├── stream.py            # Streaming inspection pipeline
+│   └── surface_defect_detector.py # Surface defect screening detector
 ├── tests/
-│   ├── test_inspection.py   # Vision inspection & lambda adapter tests
-│   ├── test_agent_decision.py # Agent unit & end-to-end tests
-│   ├── test_robustness.py   # 12-category robustness & failure-case tests
-│   └── test_validation.py   # Input safety validation tests
+│   ├── test_advanced_features.py
+│   ├── test_agent_decision.py
+│   ├── test_cross_hazard_benchmark.py
+│   ├── test_dashboard.py
+│   ├── test_diagnostics.py
+│   ├── test_field_validation.py
+│   ├── test_inspection.py
+│   ├── test_insulation_detector.py
+│   ├── test_leakage_detector.py
+│   ├── test_measurement_reliability.py
+│   ├── test_multi_hazard.py
+│   ├── test_robustness.py
+│   ├── test_safety_isolation.py
+│   ├── test_surface_defect_detector.py
+│   └── test_validation.py
 ├── tools/
-│   └── evaluate.py          # Reproducible evaluation harness script
+│   ├── evaluate.py          # Reproducible evaluation harness script
+│   ├── generate_diagrams.py # Diagram generator script
+│   └── validate_dataset.py  # Dataset validation utility
 ├── data/
 │   ├── pipe_corrosion.jpg   # Real industrial test image (1920x1080)
+│   ├── field_validation/    # Field validation dataset & manifest
 │   └── outputs/             # Generated evaluation reports and artifacts
 ├── lambda_handler.py        # AWS Lambda serverless function adapter
 ├── requirements.txt         # Local development dependencies
