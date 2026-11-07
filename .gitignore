@@ -10,3 +10,7 @@ test_output.jpg
 *.log
 .env
 .DS_Store
+data/audit/
+data/status/
+data/workspace/
+data/uploads/

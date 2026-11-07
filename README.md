@@ -79,7 +79,7 @@ CementSight adopts a dual-environment architecture to balance local development 
 - **Local Development (Android / Termux / ARM64):** Runs on compatible local OpenCV 4.x wheels due to native ARM64 compilation constraints.
 - **Competition / Cloud Target (GitHub Actions CI / AWS Lambda):** Runs on `opencv-python-headless` 5.0.0.93 with Python 3.11 and NumPy 2.2.3.
 
-The AWS-targeted Linux runtime and OpenCV 5 compliance are fully verified via automated GitHub Actions CI builds.
+The AWS-targeted Linux runtime and OpenCV 5 compliance are configured via GitHub Actions CI workflow and verified locally via the test harness.
 
 ---
 
@@ -102,7 +102,7 @@ v
 Structured inspection + proposed action
 ```
 
-*Status Note:* Live AWS deployment is pending account activation; the Lambda artifact and Linux/OpenCV 5 runtime have already been successfully built and tested in CI.
+*Status Note:* Live AWS deployment is pending account activation; the Lambda package build and Linux/OpenCV 5 runtime workflow is configured in `.github/workflows/build-lambda.yml`; local test harness passes; live cloud deployment pending account activation.
 
 ---
 
@@ -246,7 +246,7 @@ cementsight-ai/
 - **Geometric Filtering:** Synthetic rectangular corrosion patches can be filtered out by classical structural ROI extent criteria.
 - **Screening Estimate:** Corrosion percentages represent computer-vision screening estimates rather than certified physical metallurgical measurements.
 - **Human-in-the-Loop:** CRITICAL operational findings strictly require human supervisor review and approval.
-- **AWS Status:** Live cloud deployment is pending account activation; runtime artifacts are fully CI-verified.
+- **AWS Status:** Live cloud deployment is pending account activation; runtime artifacts are configured in CI; local build passes; live deployment pending.
 
 ---
 
@@ -268,3 +268,23 @@ CementSight is engineered around:
 - Agentic visual decision-making
 - Complete reproducibility and automated testing
 - Rigorous safety standards and human oversight
+
+---
+
+## Inspection Workspace (Experimental)
+
+CementSight includes an offline, local inspection workspace (`workspace/`) and API routes (`/api/workspace/*`) providing:
+- SQLite-backed asset registry and inspection tracking
+- Multi-hazard orchestrator execution per inspection
+- Finding review workflows (`confirmed`, `rejected`, `needs_followup`)
+- Multi-factor maintenance prioritization and risk scoring
+- Standalone HTML inspection report generation
+
+---
+
+## Dataset Provenance (TUBERS)
+
+- **Dataset:** TUBERS ("Visual Data from Water Pipe Inspection")
+- **Source:** Zenodo Record 20136698 (DOI: `10.5281/zenodo.20136698`)
+- **Audit Findings:** 930 total images audited; archive hash matches expected. Cross-partition near-duplicates (Hamming $\le 4$) and capture-session prefix overlap detected across train/val/test partitions.
+- **Evaluation Eligibility:** **DISABLED**. Partition leakage precludes treating this dataset as an independent benchmark for real-world generalization.

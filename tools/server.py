@@ -32,10 +32,27 @@ from app.forecasting import calculate_degradation_velocity, project_time_to_crit
 from app.cmms import format_cmms_work_order
 from app.digital_twin import AssetNode
 
+# --- Workspace imports (additive) ---
+from workspace.store import WorkspaceStore
+from workspace.models import Asset, Inspection, Finding, MaintenanceRecord
+from workspace.prioritization import score as prioritize
+from workspace.report import generate_html_report
+from vision.orchestrator import MultiHazardOrchestrator
+import hashlib
+import shutil
+
 UPLOAD_DIR = "data/uploads"
 OUTPUT_DIR = "data/outputs"
 HISTORY_FILE = os.path.join(OUTPUT_DIR, "history.json")
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB limit
+MAX_JSON_BODY = 1 * 1024 * 1024    # 1 MB limit for JSON bodies
+
+WORKSPACE_ROOT = "data/workspace"
+REPORTS_DIR = os.path.join(WORKSPACE_ROOT, "reports")
+STATUS_FILE = "data/status/tests_passing.json"
+os.makedirs(WORKSPACE_ROOT, exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -62,8 +79,37 @@ def save_history(entry):
         pass
 
 
-class ReuseTCPServer(socketserver.TCPServer):
+def _workspace():
+    """Open the workspace SQLite store (short-lived connection per request)."""
+    return WorkspaceStore(root=WORKSPACE_ROOT)
+
+
+def _read_tests_passing():
+    """Read the last recorded passing test count, or 'unknown'."""
+    try:
+        with open(STATUS_FILE) as f:
+            return json.load(f).get("tests_passing", "unknown")
+    except Exception:
+        return "unknown"
+
+
+def _json_response(handler, payload, status=200):
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.end_headers()
+    handler.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
+
+
+def _read_body_bytes(handler, max_bytes=MAX_JSON_BODY):
+    n = int(handler.headers.get("Content-Length", 0))
+    if n > max_bytes:
+        raise ValueError(f"body exceeds {max_bytes} bytes")
+    return handler.rfile.read(n) if n else b""
+
+
+class ReuseTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
+    daemon_threads = True
 
 
 class CementSightHandler(http.server.SimpleHTTPRequestHandler):
@@ -91,7 +137,7 @@ class CementSightHandler(http.server.SimpleHTTPRequestHandler):
             data = {
                 "status": "ACTIVE",
                 "python_version": sys.version,
-                "tests_passing": "48/48",
+                "tests_passing": _read_tests_passing(),
                 "framework": "Pure Python Zero-Dependency HTTP Server",
                 "bind_address": "127.0.0.1"
             }
@@ -177,11 +223,264 @@ th {{ color: #94a3b8; }}
                 self.wfile.write(json.dumps(record, indent=2).encode("utf-8"))
                 return
 
+        elif path == "/api/workspace/assets":
+            store = _workspace()
+            try:
+                _json_response(self, {"assets": [a.__dict__ for a in store.list_assets()]})
+            finally:
+                store.close()
+            return
+
+        elif path.startswith("/api/workspace/asset/"):
+            asset_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                a = store.get_asset(asset_id)
+                if not a:
+                    _json_response(self, {"error": "asset not found"}, 404); return
+                inspections = store.list_inspections_for_asset(asset_id)
+                _json_response(self, {
+                    "asset": a.__dict__,
+                    "inspections": [i.__dict__ for i in inspections],
+                    "maintenance_records": [m.__dict__ for m in store.list_maintenance_records(asset_id)],
+                })
+            finally:
+                store.close()
+            return
+
+        elif path.startswith("/api/workspace/inspection/"):
+            insp_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                insp = store.get_inspection(insp_id)
+                if not insp:
+                    _json_response(self, {"error": "inspection not found"}, 404); return
+                findings = store.list_findings(insp_id)
+                asset = store.get_asset(insp.asset_id)
+                history = store.list_inspections_for_asset(insp.asset_id)
+                pr = prioritize(asset, insp, findings, history) if asset else None
+                _json_response(self, {
+                    "inspection": {**insp.__dict__},
+                    "findings": [f.__dict__ for f in findings],
+                    "priority": pr.__dict__ if pr else None,
+                })
+            finally:
+                store.close()
+            return
+
+        elif path.startswith("/api/workspace/report/"):
+            insp_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                insp = store.get_inspection(insp_id)
+                if not insp:
+                    _json_response(self, {"error": "inspection not found"}, 404); return
+                findings = store.list_findings(insp_id)
+                asset = store.get_asset(insp.asset_id)
+                history = store.list_inspections_for_asset(insp.asset_id)
+                pr = prioritize(asset, insp, findings, history)
+                out = os.path.join(REPORTS_DIR, f"{insp_id}.html")
+                generate_html_report(store, insp, findings, pr, out)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                with open(out, "rb") as f:
+                    self.wfile.write(f.read())
+            finally:
+                store.close()
+            return
+
         return super().do_GET()
 
     def do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
+
+        if path == "/api/workspace/assets":
+            try:
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                asset = Asset(
+                    asset_id=str(data.get("asset_id", "")).strip(),
+                    location=str(data.get("location", "")).strip(),
+                    pipe_material=str(data.get("pipe_material", "unknown")),
+                    pipe_type=str(data.get("pipe_type", "unknown")),
+                    criticality=str(data.get("criticality", "normal")),
+                    notes=str(data.get("notes", "")),
+                )
+                if not asset.asset_id or not asset.location:
+                    _json_response(self, {"error": "asset_id and location are required"}, 400); return
+                store = _workspace()
+                try:
+                    store.upsert_asset(asset)
+                    _json_response(self, {"status": "ok", "asset_id": asset.asset_id})
+                finally:
+                    store.close()
+            except ValueError as e:
+                _json_response(self, {"error": str(e)}, 400)
+            except Exception as e:
+                _json_response(self, {"error": f"internal: {e}"}, 500)
+            return
+
+        if path == "/api/workspace/inspection":
+            # multipart or JSON image upload -> create inspection and run orchestrator
+            try:
+                content_type = self.headers.get("Content-Type", "")
+                params = {}
+                image_bytes = None
+                image_name = ""
+                if "multipart/form-data" in content_type:
+                    body = _read_body_bytes(self)
+                    msg = email.parser.BytesParser().parsebytes(
+                        b"Content-Type: " + content_type.encode() + b"\r\n\r\n" + body
+                    )
+                    for part in msg.walk():
+                        cd = part.get("Content-Disposition", "")
+                        if "filename=" in cd:
+                            image_name = os.path.basename(part.get_filename() or "")
+                            image_bytes = part.get_payload(decode=True) or b""
+                        else:
+                            name = part.get_param("name", header="content-disposition")
+                            if name:
+                                params[name] = part.get_payload(decode=True).decode("utf-8", "ignore")
+                else:
+                    body = _read_body_bytes(self)
+                    data = json.loads(body.decode("utf-8") or "{}")
+                    image_path = data.get("image_path")
+                    if image_path:
+                        norm = os.path.normpath(image_path)
+                        if ".." in norm or os.path.isabs(norm):
+                            _json_response(self, {"error": "invalid image_path"}, 400); return
+                        if not os.path.exists(norm):
+                            _json_response(self, {"error": "image_path not found"}, 400); return
+                        with open(norm, "rb") as f:
+                            image_bytes = f.read()
+                        image_name = os.path.basename(norm)
+                    for k in ("asset_id", "inspection_date", "pipe_material", "pipe_type", "location", "criticality", "inspector_notes"):
+                        if k in data:
+                            params[k] = str(data[k])
+
+                asset_id = (params.get("asset_id") or "").strip()
+                inspection_date = (params.get("inspection_date") or time.strftime("%Y-%m-%d")).strip()
+                location = (params.get("location") or "").strip()
+                if not asset_id:
+                    _json_response(self, {"error": "asset_id is required"}, 400); return
+                if image_bytes is None or len(image_bytes) == 0:
+                    _json_response(self, {"error": "image file is required"}, 400); return
+
+                store = _workspace()
+                try:
+                    # Ensure asset exists (create lightweight if not)
+                    if not store.get_asset(asset_id):
+                        store.upsert_asset(Asset(
+                            asset_id=asset_id,
+                            location=location or "(unspecified)",
+                            pipe_material=params.get("pipe_material", "unknown"),
+                            pipe_type=params.get("pipe_type", "unknown"),
+                            criticality=params.get("criticality", "normal"),
+                        ))
+                    image_sha, image_ext = store.store_image(image_bytes)
+                    img_abs = store.image_path(image_sha, image_ext)
+
+                    ok, decoded, err = validate_image_input(img_abs)
+                    if not ok:
+                        _json_response(self, {"error": f"image validation: {err}"}, 400); return
+
+                    orch = MultiHazardOrchestrator()
+                    result = orch.run_inspections(decoded)
+                    authoritative = result.get("authoritative_inspection_report", {})
+
+                    insp_id = "INS-" + uuid.uuid4().hex[:12]
+                    insp = Inspection(
+                        inspection_id=insp_id,
+                        asset_id=asset_id,
+                        inspection_date=inspection_date,
+                        image_sha256=image_sha,
+                        image_ext=image_ext,
+                        detector_results=result,
+                        authoritative_report=authoritative,
+                        inspector_notes=params.get("inspector_notes", ""),
+                        created_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    )
+                    store.create_inspection(insp)
+
+                    findings = []
+                    for det_id, det_res in result.get("detectors", {}).items():
+                        for f in det_res.get("findings", []):
+                            findings.append(Finding(
+                                finding_id=f.get("finding_id") or uuid.uuid4().hex,
+                                inspection_id=insp_id,
+                                detector_id=f.get("detector_id", det_id),
+                                defect_category=f.get("defect_category", det_res.get("defect_category", "unknown")),
+                                bbox=f.get("bbox"),
+                                confidence=f.get("confidence"),
+                                evidence_description=f.get("evidence_description", ""),
+                                limitations=f.get("limitations", []) if isinstance(f.get("limitations"), list) else [],
+                            ))
+                    if findings:
+                        store.add_findings(findings)
+
+                    _json_response(self, {
+                        "inspection_id": insp_id,
+                        "asset_id": asset_id,
+                        "image_sha256": image_sha,
+                        "authoritative_inspection_report": authoritative,
+                        "findings_count": len(findings),
+                        "detector_summaries": result.get("detector_summaries", []),
+                    }, 201)
+                finally:
+                    store.close()
+            except ValueError as e:
+                _json_response(self, {"error": str(e)}, 400)
+            except Exception as e:
+                _json_response(self, {"error": f"internal: {e}"}, 500)
+            return
+
+        if path.startswith("/api/workspace/review/"):
+            try:
+                finding_id = urllib.parse.unquote(path.split("/")[-1])
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                status = str(data.get("status", "")).strip()
+                notes = str(data.get("notes", ""))
+                store = _workspace()
+                try:
+                    store.review_finding(finding_id, status, notes)
+                    _json_response(self, {"status": "ok", "finding_id": finding_id, "review_status": status})
+                finally:
+                    store.close()
+            except ValueError as e:
+                _json_response(self, {"error": str(e)}, 400)
+            except Exception as e:
+                _json_response(self, {"error": f"internal: {e}"}, 500)
+            return
+
+        if path == "/api/workspace/maintenance":
+            try:
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                rec = MaintenanceRecord(
+                    record_id="MR-" + uuid.uuid4().hex[:12],
+                    asset_id=str(data.get("asset_id", "")).strip(),
+                    inspection_id=data.get("inspection_id"),
+                    work_performed=str(data.get("work_performed", "")).strip(),
+                    performed_by=str(data.get("performed_by", "")).strip(),
+                    performed_at=str(data.get("performed_at") or time.strftime("%Y-%m-%dT%H:%M:%S")),
+                    kind=str(data.get("kind", "recorded_work")),
+                )
+                if not rec.asset_id or not rec.work_performed:
+                    _json_response(self, {"error": "asset_id and work_performed are required"}, 400); return
+                store = _workspace()
+                try:
+                    store.add_maintenance_record(rec)
+                    _json_response(self, {"status": "ok", "record_id": rec.record_id})
+                finally:
+                    store.close()
+            except ValueError as e:
+                _json_response(self, {"error": str(e)}, 400)
+            except Exception as e:
+                _json_response(self, {"error": f"internal: {e}"}, 500)
+            return
 
         if path == "/api/clear-history":
             try:
@@ -434,7 +733,7 @@ th {{ color: #94a3b8; }}
                 "stage_6_enterprise": {
                     "cmms_work_order": work_order,
                     "dashboard_status": "ONLINE",
-                    "tests_passing": "48/48"
+                    "tests_passing": _read_tests_passing()
                 }
             }
 
@@ -447,9 +746,18 @@ th {{ color: #94a3b8; }}
         self.send_error(404, "Not Found")
 
 
+# SECURITY NOTE: This HTTP server binds 127.0.0.1 only and MUST NOT be exposed
+# to a public network or untrusted interface because it has no authentication
+# or CSRF protection layers.
 def run_server(port=8000):
     server_address = ("127.0.0.1", port)
-    httpd = ReuseTCPServer(server_address, CementSightHandler)
+    try:
+        httpd = ReuseTCPServer(server_address, CementSightHandler)
+    except OSError as e:
+        if getattr(e, "errno", None) == 98 or "Address already in use" in str(e):
+            print(f"ERROR: Port {port} is already in use. Please stop any running server instance first.", file=sys.stderr)
+            sys.exit(1)
+        raise
     print(f"CementSight Interactive Mobile Dashboard & Backend running at http://127.0.0.1:{port}")
     print("Press Ctrl+C to stop.")
     try:

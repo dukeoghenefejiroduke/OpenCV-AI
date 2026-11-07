@@ -39,7 +39,7 @@
                     Local Demo Mode (127.0.0.1)
                 </div>
                 <div class="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono shadow-sm">
-                    Tests: 48/48 Passing
+                    Tests: <span id="tests-passing">…</span> Passing
                 </div>
             </div>
         </div>
@@ -359,6 +359,211 @@
                 </table>
             </div>
         </section>
+
+        <!-- ============================================================ -->
+        <!-- Inspection Workspace (added, additive)                        -->
+        <!-- ============================================================ -->
+        <section id="workspace" class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <h2 class="text-base font-semibold text-white">Inspection Workspace</h2>
+                <span class="text-xs font-mono text-slate-400">Local, offline, human-reviewed</span>
+            </div>
+
+            <!-- 1. Asset + inspection form -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input id="ws-asset-id" placeholder="Asset ID (e.g. PIPE-01)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
+                <input id="ws-location" placeholder="Location (e.g. Plant A – Line 3)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
+                <input id="ws-material" placeholder="Pipe material (optional)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
+                <select id="ws-criticality" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
+                    <option value="low">Criticality: low</option>
+                    <option value="normal" selected>Criticality: normal</option>
+                    <option value="high">Criticality: high</option>
+                    <option value="critical">Criticality: critical</option>
+                </select>
+                <input id="ws-date" type="date" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
+                <input id="ws-file" type="file" accept="image/jpeg,image/png,image/webp" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-amber-500/20 file:text-amber-400">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="wsCreateInspection()" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-slate-950 font-bold rounded-xl text-xs sm:text-sm">Create Inspection</button>
+                <button onclick="wsRefreshAssets()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-mono">Refresh Assets</button>
+            </div>
+
+            <div id="ws-message" class="text-xs font-mono text-amber-400 min-h-[1rem]"></div>
+
+            <!-- 2. Latest inspection findings + review -->
+            <div id="ws-findings" class="hidden space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-white">Findings</h3>
+                    <span id="ws-priority" class="text-xs font-mono"></span>
+                </div>
+                <div class="text-xs font-mono text-slate-400">Confidence is not shown because these classical detectors emit a candidate score, not a calibrated probability.</div>
+                <!-- Filter chip bar -->
+                <div class="flex flex-wrap gap-1.5 pt-1 pb-1">
+                    <button onclick="wsSetFilter('confirmed_followup')" id="chip-confirmed_followup" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">Confirmed + Follow-up</button>
+                    <button onclick="wsSetFilter('all')" id="chip-all" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">All</button>
+                    <button onclick="wsSetFilter('confirmed')" id="chip-confirmed" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Confirmed</button>
+                    <button onclick="wsSetFilter('needs_followup')" id="chip-needs_followup" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Needs follow-up</button>
+                    <button onclick="wsSetFilter('unreviewed')" id="chip-unreviewed" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Unreviewed</button>
+                    <button onclick="wsSetFilter('rejected')" id="chip-rejected" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Rejected</button>
+                </div>
+                <div id="ws-findings-container" class="space-y-2"></div>
+                <div id="ws-empty-state" class="text-xs font-mono text-slate-500 text-center py-4 hidden">No findings match this filter. Try 'All' or review more findings.</div>
+                <ul id="ws-rationale" class="text-xs font-mono text-slate-300 list-disc list-inside space-y-1"></ul>
+                <button onclick="wsOpenReport()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-mono">Generate HTML Report</button>
+            </div>
+        </section>
+
+        <script>
+        let wsCurrentInspectionId = null;
+        let wsCurrentFilter = 'confirmed_followup';
+        let wsCachedFindings = [];
+
+        function wsSetFilter(filter) {
+            wsCurrentFilter = filter;
+            ['confirmed_followup', 'all', 'confirmed', 'needs_followup', 'unreviewed', 'rejected'].forEach(f => {
+                const btn = document.getElementById('chip-' + f);
+                if (!btn) return;
+                if (f === filter) {
+                    btn.className = "px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/25 text-emerald-300 border border-emerald-500/40";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700";
+                }
+            });
+            wsRenderFindings();
+        }
+
+        async function wsLoadInspection() {
+            if (!wsCurrentInspectionId) return;
+            const r = await fetch("/api/workspace/inspection/" + encodeURIComponent(wsCurrentInspectionId));
+            if (!r.ok) return;
+            const data = await r.json();
+            wsCachedFindings = data.findings || [];
+            wsRenderFindings();
+
+            const p = data.priority;
+            document.getElementById("ws-priority").textContent = p ? `Priority: ${p.category} (score ${p.score})` : "";
+            const ul = document.getElementById("ws-rationale");
+            ul.innerHTML = "";
+            (p ? p.rationale : []).forEach(r => {
+                const li = document.createElement("li");
+                li.textContent = r;
+                ul.appendChild(li);
+            });
+            document.getElementById("ws-findings").classList.remove("hidden");
+        }
+
+        function wsRenderFindings() {
+            const container = document.getElementById("ws-findings-container");
+            const emptyEl = document.getElementById("ws-empty-state");
+            if (!container) return;
+            container.innerHTML = "";
+
+            const filtered = wsCachedFindings.filter(f => {
+                const st = f.human_review_status || "unreviewed";
+                if (wsCurrentFilter === 'all') return true;
+                if (wsCurrentFilter === 'confirmed_followup') return st === 'confirmed' || st === 'needs_followup';
+                return st === wsCurrentFilter;
+            });
+
+            if (filtered.length === 0) {
+                emptyEl.classList.remove("hidden");
+            } else {
+                emptyEl.classList.add("hidden");
+            }
+
+            const groups = {};
+            wsCachedFindings.forEach(f => {
+                const det = f.detector_id || "unknown";
+                if (!groups[det]) groups[det] = [];
+                groups[det].push(f);
+            });
+
+            for (const [detId, detFindings] of Object.entries(groups)) {
+                let c = 0, fu = 0, u = 0, r = 0;
+                detFindings.forEach(f => {
+                    const st = f.human_review_status || "unreviewed";
+                    if (st === 'confirmed') c++;
+                    else if (st === 'needs_followup') fu++;
+                    else if (st === 'unreviewed') u++;
+                    else if (st === 'rejected') r++;
+                });
+
+                const visibleDetFindings = detFindings.filter(f => {
+                    const st = f.human_review_status || "unreviewed";
+                    if (wsCurrentFilter === 'all') return true;
+                    if (wsCurrentFilter === 'confirmed_followup') return st === 'confirmed' || st === 'needs_followup';
+                    return st === wsCurrentFilter;
+                });
+
+                if (visibleDetFindings.length === 0 && wsCurrentFilter !== 'all') {
+                    continue;
+                }
+
+                const details = document.createElement("details");
+                details.className = "bg-slate-950/70 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200";
+                const hasReviewed = (c > 0 || fu > 0 || r > 0);
+                if (hasReviewed) details.open = true;
+
+                const summary = document.createElement("summary");
+                summary.className = "cursor-pointer font-semibold text-white flex items-center justify-between";
+                summary.innerHTML = `<span>${detId} — ${detFindings.length} findings</span> <span class="text-[11px] text-slate-400">(${c} confirmed / ${fu} follow-up / ${u} unreviewed / ${r} rejected)</span>`;
+                details.appendChild(summary);
+
+                const bodyDiv = document.createElement("div");
+                bodyDiv.className = "mt-3 space-y-2 border-t border-slate-800/80 pt-2";
+
+                visibleDetFindings.forEach(f => {
+                    const row = document.createElement("div");
+                    row.className = "bg-slate-900 border border-slate-800/60 rounded-lg p-2.5 space-y-1";
+                    row.innerHTML =
+                        `<div><strong>${f.defect_category}</strong> — bbox: ${JSON.stringify(f.bbox)}</div>` +
+                        `<div class="text-slate-400">score: ${f.confidence == null ? "n/a" : f.confidence} (heuristic)</div>` +
+                        `<div class="text-slate-400">status: <span class="px-1.5 py-0.5 rounded text-[10px] ${f.human_review_status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' : f.human_review_status === 'rejected' ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-300'}">${f.human_review_status}</span></div>`;
+                    const btns = document.createElement("div");
+                    btns.className = "flex gap-2 mt-1";
+                    [["confirmed", "Confirm"], ["rejected", "Reject"], ["needs_followup", "Follow-up"]].forEach(([status, label]) => {
+                        const b = document.createElement("button");
+                        b.textContent = label;
+                        b.className = "px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px]";
+                        b.onclick = () => wsReview(f.finding_id, status);
+                        btns.appendChild(b);
+                    });
+                    row.appendChild(btns);
+                    bodyDiv.appendChild(row);
+                });
+
+                details.appendChild(bodyDiv);
+                container.appendChild(details);
+            }
+        }
+
+        async function wsReview(findingId, status) {
+            const r = await fetch("/api/workspace/review/" + encodeURIComponent(findingId), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status, notes: "" })
+            });
+            if (r.ok) wsLoadInspection();
+        }
+
+        function wsOpenReport() {
+            if (!wsCurrentInspectionId) return;
+            window.open("/api/workspace/report/" + encodeURIComponent(wsCurrentInspectionId), "_blank");
+        }
+
+        async function wsRefreshAssets() {
+            const r = await fetch("/api/workspace/assets");
+            if (!r.ok) return;
+            const data = await r.json();
+            document.getElementById("ws-message").textContent = "Known assets: " + data.assets.map(a => a.asset_id).join(", ");
+        }
+
+        // Populate test count from real status
+        fetch("/api/status").then(r => r.json()).then(d => {
+            const el = document.getElementById("tests-passing");
+            if (el) el.textContent = d.tests_passing || "unknown";
+        }).catch(() => {});
+        </script>
     </main>
 
     <!-- Image Lightbox Modal -->
