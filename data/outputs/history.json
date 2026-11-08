@@ -1,7 +1,7 @@
 [
   {
-    "inspection_id": "6b852afc16",
-    "timestamp": "2026-11-07 16:52:32",
+    "inspection_id": "42c772cec1",
+    "timestamp": "2026-11-08 19:50:54",
     "asset_id": "PIPE-01",
     "input_filename": "pipe_corrosion.jpg",
     "input_type": "image",
@@ -10,7 +10,7 @@
     "approval_required": false,
     "corrosion_percentage": 6.56,
     "region_count": 11,
-    "annotated_output": "data/outputs/live_annotated_6b852afc16.jpg",
+    "annotated_output": "data/outputs/live_annotated_42c772cec1.jpg",
     "cmms_status": "PAYLOAD PREPARED \u2014 NOT DISPATCHED",
     "forecast_status": "Insufficient historical data for a reliable trend estimate."
   }

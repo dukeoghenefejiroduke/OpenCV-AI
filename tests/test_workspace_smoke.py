@@ -6,7 +6,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from workspace.store import WorkspaceStore
-from workspace.models import Asset, Inspection, Finding
+from workspace.models import Asset, Inspection, Finding, MaintenanceRecord
 from workspace.prioritization import score as prioritize
 from workspace.report import generate_html_report
 
@@ -89,3 +89,59 @@ def test_workspace_full_workflow_smoke(tmp_path):
         assert statuses["F-REJ-01"] == "rejected"
     finally:
         store2.close()
+
+
+def test_asset_qr_and_repair_verification(tmp_path):
+    db_root = str(tmp_path / "workspace_qr")
+    store = WorkspaceStore(root=db_root)
+    try:
+        # 1. Asset with QR payload
+        asset = Asset(
+            asset_id="PIPE-QR-01",
+            location="Zone B",
+            qr_payload="CEMENTSIGHT://ASSET/PIPE-QR-01?mat=steel&crit=critical"
+        )
+        store.upsert_asset(asset)
+        fetched = store.get_asset("PIPE-QR-01")
+        assert fetched.qr_payload == "CEMENTSIGHT://ASSET/PIPE-QR-01?mat=steel&crit=critical"
+
+        # 2. Initial inspection & maintenance record / repair verification lifecycle
+        sha, ext = store.store_image(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9")
+        insp_initial = Inspection(
+            inspection_id="INS-INIT-01", asset_id="PIPE-QR-01",
+            inspection_date="2026-11-01", image_sha256=sha, image_ext=ext
+        )
+        store.create_inspection(insp_initial)
+
+        rec = MaintenanceRecord(
+            record_id="MR-01",
+            asset_id="PIPE-QR-01",
+            inspection_id="INS-INIT-01",
+            work_performed="Replaced corroded pipe segment",
+            performed_by="Technician Jane",
+            performed_at="2026-11-03T10:00:00",
+            kind="recorded_work",
+            verification_status="verified_resolved",
+            followup_inspection_id="INS-FOLLOW-01"
+        )
+        store.add_maintenance_record(rec)
+
+        records = store.list_maintenance_records("PIPE-QR-01")
+        assert len(records) == 1
+        assert records[0].verification_status == "verified_resolved"
+        assert records[0].followup_inspection_id == "INS-FOLLOW-01"
+    finally:
+        store.close()
+
+
+def test_qr_parsing_and_badge_generation():
+    from tools.server import _parse_asset_id_from_qr, generate_asset_qr_svg
+    payload = "CEMENTSIGHT://ASSET/PIPE-QR-01?mat=steel&crit=critical"
+    extracted_id = _parse_asset_id_from_qr(payload)
+    assert extracted_id == "PIPE-QR-01"
+
+    asset = Asset(asset_id="PIPE-QR-01", location="Zone B", qr_payload=payload, criticality="critical", pipe_material="steel")
+    badge_html = generate_asset_qr_svg(asset)
+    assert "CementSight Asset Tag" in badge_html
+    assert "PIPE-QR-01" in badge_html
+    assert "critical" in badge_html

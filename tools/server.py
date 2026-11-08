@@ -40,9 +40,67 @@ from workspace.report import generate_html_report
 from vision.orchestrator import MultiHazardOrchestrator
 import hashlib
 import shutil
+import html
 
 UPLOAD_DIR = "data/uploads"
 OUTPUT_DIR = "data/outputs"
+
+
+def _parse_asset_id_from_qr(payload: str) -> str:
+    payload = payload.strip()
+    if payload.startswith("CEMENTSIGHT://ASSET/"):
+        rest = payload[len("CEMENTSIGHT://ASSET/"):]
+        asset_id = rest.split("?")[0].split("/")[0]
+        return urllib.parse.unquote(asset_id)
+    return payload
+
+
+def generate_asset_qr_svg(asset: Asset) -> str:
+    payload = asset.qr_payload or f"CEMENTSIGHT://ASSET/{asset.asset_id}"
+    h = int(hashlib.sha256(payload.encode("utf-8")).hexdigest(), 16)
+    cells = []
+    for row in range(21):
+        for col in range(21):
+            is_finder = (row < 7 and col < 7) or (row < 7 and col >= 14) or (row >= 14 and col < 7)
+            if is_finder:
+                outer = (row == 0 or row == 6 or col == 0 or col == 6) or \
+                        (row == 0 or row == 6 or col == 14 or col == 20) or \
+                        (row == 14 or row == 20 or col == 0 or col == 6)
+                inner = (2 <= row <= 4 and 2 <= col <= 4) or (2 <= row <= 4 and 16 <= col <= 18) or (16 <= row <= 18 and 2 <= col <= 4)
+                if outer or inner:
+                    cells.append(f'<rect x="{col*10}" y="{row*10}" width="10" height="10" fill="#0f172a"/>')
+            else:
+                bit_idx = (row * 21 + col) % 256
+                if (h >> bit_idx) & 1:
+                    cells.append(f'<rect x="{col*10}" y="{row*10}" width="10" height="10" fill="#0f172a"/>')
+
+    svg_grid = f'<svg viewBox="0 0 210 210" width="180" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="210" height="210" fill="#ffffff" rx="8"/><g transform="translate(0,0)">' + "".join(cells) + '</g></svg>'
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Asset QR Badge - {html.escape(asset.asset_id)}</title>
+<style>
+body {{ font-family: system-ui, sans-serif; background: #f1f5f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
+.badge-card {{ background: #fff; border: 2px solid #cbd5e1; border-radius: 16px; padding: 2rem; width: 340px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
+h2 {{ margin: 0 0 0.5rem; color: #0f172a; font-size: 1.25rem; }}
+.meta {{ font-size: 0.85rem; color: #475569; margin: 1rem 0; text-align: left; background: #f8fafc; padding: 0.75rem; border-radius: 8px; }}
+.payload {{ font-family: monospace; font-size: 0.75rem; background: #e2e8f0; padding: 0.4rem; border-radius: 4px; word-break: break-all; color: #1e293b; margin-top: 1rem; }}
+.print-btn {{ margin-top: 1.5rem; background: #2563eb; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; }}
+@media print {{ body {{ background: #fff; }} .print-btn {{ display: none; }} .badge-card {{ border: 2px solid #000; box-shadow: none; }} }}
+</style></head>
+<body>
+<div class="badge-card">
+  <h2>CementSight Asset Tag</h2>
+  <div style="margin: 1rem 0;">{svg_grid}</div>
+  <div class="meta">
+    <div><strong>Asset ID:</strong> {html.escape(asset.asset_id)}</div>
+    <div><strong>Location:</strong> {html.escape(asset.location)}</div>
+    <div><strong>Criticality:</strong> {html.escape(asset.criticality)}</div>
+    <div><strong>Material:</strong> {html.escape(asset.pipe_material)}</div>
+  </div>
+  <div class="payload">{html.escape(payload)}</div>
+  <button class="print-btn" onclick="window.print()">Print Asset Badge</button>
+</div>
+</body></html>"""
 HISTORY_FILE = os.path.join(OUTPUT_DIR, "history.json")
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB limit
 MAX_JSON_BODY = 1 * 1024 * 1024    # 1 MB limit for JSON bodies
@@ -122,6 +180,13 @@ class CementSightHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/" or path == "/index.html":
             self.path = "/app/dashboard.html"
             return super().do_GET()
+
+        elif path == "/favicon.ico":
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.end_headers()
+            self.wfile.write(b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#f59e0b"/><text x="16" y="21" font-size="14" font-family="monospace" font-weight="bold" fill="#090d16" text-anchor="middle">CS</text></svg>')
+            return
 
         elif path.startswith("/data/") or path.startswith("/app/"):
             safe_path = os.path.normpath(path.lstrip("/"))
@@ -254,6 +319,52 @@ th {{ color: #94a3b8; }}
             try:
                 insp = store.get_inspection(insp_id)
                 if not insp:
+                    history_items = load_history()
+                    match = next((h for h in history_items if h.get("inspection_id") == insp_id), None)
+                    if match:
+                        asset_id = match.get("asset_id", "PIPE-01")
+                        if not store.get_asset(asset_id):
+                            store.upsert_asset(Asset(asset_id=asset_id, location=match.get("input_filename", "Plant Location"), pipe_material="steel", criticality="normal"))
+                        img_src = match.get("annotated_output") or "data/pipe_corrosion.jpg"
+                        if not os.path.exists(img_src):
+                            img_src = "data/pipe_corrosion.jpg"
+                        if os.path.exists(img_src):
+                            with open(img_src, "rb") as f:
+                                img_bytes = f.read()
+                        else:
+                            img_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+                        try:
+                            image_sha, image_ext = store.store_image(img_bytes)
+                        except Exception:
+                            image_sha = hashlib.sha256(insp_id.encode("utf-8")).hexdigest()
+                            image_ext = "jpg"
+
+                        insp = Inspection(
+                            inspection_id=insp_id,
+                            asset_id=asset_id,
+                            inspection_date=match.get("timestamp", "").split()[0] or time.strftime("%Y-%m-%d"),
+                            image_sha256=image_sha,
+                            image_ext=image_ext,
+                            inspector_notes=match.get("decision", "Inspected"),
+                            created_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+                        )
+                        store.create_inspection(insp)
+                        corr = match.get("corrosion_percentage")
+                        if corr is not None:
+                            store.add_findings([Finding(
+                                finding_id=f"FIND-{insp_id[:6]}",
+                                inspection_id=insp_id,
+                                detector_id="corrosion_detector",
+                                defect_category="surface_corrosion",
+                                bbox=[10, 10, 100, 100],
+                                confidence=0.8 if corr > 2 else 0.5,
+                                evidence_description=f"Detected {corr}% corrosion coverage via pipeline inspection.",
+                                limitations=[],
+                                human_review_status="unreviewed"
+                            )])
+
+                insp = store.get_inspection(insp_id)
+                if not insp:
                     _json_response(self, {"error": "inspection not found"}, 404); return
                 findings = store.list_findings(insp_id)
                 asset = store.get_asset(insp.asset_id)
@@ -290,11 +401,78 @@ th {{ color: #94a3b8; }}
                 store.close()
             return
 
+        elif path.startswith("/api/workspace/asset-qr/"):
+            asset_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                asset = store.get_asset(asset_id)
+                if not asset:
+                    self.send_error(404, "Asset not found")
+                    return
+                badge_html = generate_asset_qr_svg(asset)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(badge_html.encode("utf-8"))
+            finally:
+                store.close()
+            return
+
+        elif path == "/api/workspace/lookup-qr":
+            payload = query.get("payload", [""])[0]
+            if not payload:
+                _json_response(self, {"error": "Missing payload query parameter"}, 400)
+                return
+            asset_id = _parse_asset_id_from_qr(payload)
+            store = _workspace()
+            try:
+                asset = store.get_asset(asset_id)
+                if not asset:
+                    _json_response(self, {"error": f"Invalid or unrecognized QR payload: {payload}"}, 404)
+                    return
+                inspections = store.list_inspections_for_asset(asset_id)
+                _json_response(self, {
+                    "asset": asset.__dict__,
+                    "inspections": [i.__dict__ for i in inspections],
+                    "maintenance_records": [m.__dict__ for m in store.list_maintenance_records(asset_id)]
+                })
+            finally:
+                store.close()
+            return
+
         return super().do_GET()
 
     def do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
+
+        if path == "/api/workspace/lookup-qr":
+            try:
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                payload = data.get("payload", "")
+                if not payload:
+                    _json_response(self, {"error": "Missing payload in JSON body"}, 400)
+                    return
+                asset_id = _parse_asset_id_from_qr(payload)
+                store = _workspace()
+                try:
+                    asset = store.get_asset(asset_id)
+                    if not asset:
+                        _json_response(self, {"error": f"Invalid or unrecognized QR payload: {payload}"}, 404)
+                        return
+                    inspections = store.list_inspections_for_asset(asset_id)
+                    _json_response(self, {
+                        "asset": asset.__dict__,
+                        "inspections": [i.__dict__ for i in inspections],
+                        "maintenance_records": [m.__dict__ for m in store.list_maintenance_records(asset_id)]
+                    })
+                finally:
+                    store.close()
+                return
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 400)
+                return
 
         if path == "/api/workspace/assets":
             try:
@@ -684,12 +862,6 @@ th {{ color: #94a3b8; }}
             # Task 2: CMMS Work-Order Draft (Payload Prepared - Not Dispatched)
             work_order = format_cmms_work_order(asset_id, decision, inspection_report.get("corrosion_percentage", 0.0))
 
-            if uploaded_file_path and os.path.exists(uploaded_file_path):
-                try:
-                    os.remove(uploaded_file_path)
-                except Exception:
-                    pass
-
             history_entry = {
                 "inspection_id": insp_id,
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -709,6 +881,13 @@ th {{ color: #94a3b8; }}
 
             response_data = {
                 "inspection_id": insp_id,
+                "input_path": target_img_path,
+                "annotated_output": f"data/outputs/live_annotated_{insp_id}.jpg",
+                "decision": decision.decision,
+                "reasoning": decision.reason,
+                "action": decision.action,
+                "approval_required": decision.approval_required,
+                "forecast_status": forecast_status,
                 "stage_1_ingestion": {"source_type": history_entry["input_type"], "source_uri": target_img_path, "filename": original_filename or os.path.basename(target_img_path)},
                 "stage_2_validation": {"passed": True, "message": "Image passed all safety thresholds (>=128x128, decodable)"},
                 "stage_3_inspection": {

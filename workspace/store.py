@@ -33,6 +33,11 @@ class WorkspaceStore:
         os.makedirs(self.images_dir, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path)
         self._conn.row_factory = sqlite3.Row
+        try:
+            self._conn.execute("PRAGMA journal_mode=WAL;")
+            self._conn.execute("PRAGMA synchronous=NORMAL;")
+        except Exception:
+            pass
         self._migrate()
 
     def _migrate(self):
@@ -45,7 +50,8 @@ class WorkspaceStore:
             pipe_material TEXT NOT NULL DEFAULT 'unknown',
             pipe_type TEXT NOT NULL DEFAULT 'unknown',
             criticality TEXT NOT NULL DEFAULT 'normal',
-            notes TEXT NOT NULL DEFAULT ''
+            notes TEXT NOT NULL DEFAULT '',
+            qr_payload TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS inspections (
             inspection_id TEXT PRIMARY KEY,
@@ -81,10 +87,21 @@ class WorkspaceStore:
             work_performed TEXT NOT NULL,
             performed_by TEXT NOT NULL,
             performed_at TEXT NOT NULL,
-            kind TEXT NOT NULL DEFAULT 'recorded_work'
+            kind TEXT NOT NULL DEFAULT 'recorded_work',
+            verification_status TEXT NOT NULL DEFAULT 'pending',
+            followup_inspection_id TEXT
         );
-        INSERT OR IGNORE INTO schema_version(version) VALUES (1);
+        INSERT OR IGNORE INTO schema_version(version) VALUES (2);
         """)
+        for col_def, table in [
+            ("qr_payload TEXT NOT NULL DEFAULT ''", "assets"),
+            ("verification_status TEXT NOT NULL DEFAULT 'pending'", "maintenance_records"),
+            ("followup_inspection_id TEXT", "maintenance_records")
+        ]:
+            try:
+                cur.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
+            except Exception:
+                pass
         self._conn.commit()
 
     # ---- image storage ----
@@ -132,13 +149,13 @@ class WorkspaceStore:
         if asset.criticality not in ("low", "normal", "high", "critical"):
             raise ValueError("invalid criticality")
         self._conn.execute(
-            "INSERT INTO assets(asset_id, location, pipe_material, pipe_type, criticality, notes) "
-            "VALUES (?, ?, ?, ?, ?, ?) "
+            "INSERT INTO assets(asset_id, location, pipe_material, pipe_type, criticality, notes, qr_payload) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(asset_id) DO UPDATE SET location=excluded.location, "
             "pipe_material=excluded.pipe_material, pipe_type=excluded.pipe_type, "
-            "criticality=excluded.criticality, notes=excluded.notes",
+            "criticality=excluded.criticality, notes=excluded.notes, qr_payload=excluded.qr_payload",
             (asset.asset_id, asset.location, asset.pipe_material,
-             asset.pipe_type, asset.criticality, asset.notes),
+             asset.pipe_type, asset.criticality, asset.notes, asset.qr_payload),
         )
         self._conn.commit()
 
@@ -235,10 +252,14 @@ class WorkspaceStore:
     def add_maintenance_record(self, rec: MaintenanceRecord) -> None:
         if rec.kind not in ("recorded_work", "recommendation"):
             raise ValueError("invalid maintenance record kind")
+        if rec.verification_status not in ("pending", "verified_resolved", "unresolved"):
+            raise ValueError("invalid verification status")
         self._conn.execute(
-            "INSERT INTO maintenance_records VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO maintenance_records(record_id, asset_id, inspection_id, work_performed, performed_by, performed_at, kind, verification_status, followup_inspection_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (rec.record_id, rec.asset_id, rec.inspection_id,
-             rec.work_performed, rec.performed_by, rec.performed_at, rec.kind),
+             rec.work_performed, rec.performed_by, rec.performed_at, rec.kind,
+             rec.verification_status, rec.followup_inspection_id),
         )
         self._conn.commit()
 

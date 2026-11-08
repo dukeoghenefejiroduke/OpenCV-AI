@@ -15,6 +15,7 @@ class Asset:
     pipe_type: str = "unknown"
     criticality: str = "normal"   # "low" | "normal" | "high" | "critical"
     notes: str = ""
+    qr_payload: str = ""      # QR code or asset tag identifier payload
 
 
 @dataclass
@@ -51,11 +52,13 @@ class MaintenanceRecord:
     """Recorded maintenance work — distinct from recommendations."""
     record_id: str
     asset_id: str
-    inspection_id: Optional[str]
+    inspection_id: Optional[str]     # initial inspection showing defect
     work_performed: str
     performed_by: str
     performed_at: str
-    kind: str = "recorded_work"    # "recorded_work" | "recommendation"
+    kind: str = "recorded_work"      # "recorded_work" | "recommendation"
+    verification_status: str = "pending" # "pending" | "verified_resolved" | "unresolved"
+    followup_inspection_id: Optional[str] = None # follow-up inspection evidence after repair
 
 
 @dataclass
