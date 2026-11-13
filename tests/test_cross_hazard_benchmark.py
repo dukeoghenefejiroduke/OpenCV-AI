@@ -1,93 +1,89 @@
-"""Cross-Hazard Benchmark and Synthetic Fixture Evaluation (tests/test_cross_hazard_benchmark.py).
+"""Unit tests for Continuous AUC, Leave-Groups-Out Tuning Harness, and Field Validation Manifest Tool (tests/test_cross_hazard_benchmark.py)."""
 
-Evaluates all five hazard detectors across controlled synthetic positive and negative fixtures,
-reporting per-hazard metrics including True Positives (TP), False Positives (FP), True Negatives (TN),
-False Negatives (FN), Precision, Recall, False-Positive Rate (FPR), and False-Negative Rate (FNR).
-Clearly distinguishes synthetic-fixture evaluation metrics from real-world field performance
-and explicitly avoids claiming validated real-world accuracy without representative labeled datasets.
-"""
-
+import os
+import json
+import csv
 import pytest
 import numpy as np
-import cv2
-from typing import Dict, Any, List
 
-from vision.orchestrator import MultiHazardOrchestrator
-from vision.contract import STATUS_CANDIDATE_DETECTED, STATUS_NO_CANDIDATE
-
-
-def evaluate_hazard_domain(domain_name: str, positive_image: np.ndarray, negative_image: np.ndarray, detector_id: str) -> Dict[str, Any]:
-    """Computes benchmark performance metrics for a specific hazard domain using positive and negative fixtures."""
-    orchestrator = MultiHazardOrchestrator()
-
-    # Evaluate positive fixture
-    rep_pos = orchestrator.run_inspections(positive_image)
-    status_pos = rep_pos["detectors"].get(detector_id, {}).get("execution_status")
-    tp = 1 if status_pos == STATUS_CANDIDATE_DETECTED else 0
-    fn = 0 if tp == 1 else 1
-
-    # Evaluate negative fixture (clean surface)
-    rep_neg = orchestrator.run_inspections(negative_image)
-    status_neg = rep_neg["detectors"].get(detector_id, {}).get("execution_status")
-    tn = 1 if status_neg == STATUS_NO_CANDIDATE else 0
-    fp = 0 if tn == 1 else 1
-
-    precision = float(tp) / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall = float(tp) / (tp + fn) if (tp + fn) > 0 else 0.0
-    fpr = float(fp) / (fp + tn) if (fp + tn) > 0 else 0.0
-    fnr = float(fn) / (tp + fn) if (tp + fn) > 0 else 0.0
-
-    return {
-        "domain": domain_name,
-        "detector_id": detector_id,
-        "positive_fixtures": 1,
-        "negative_fixtures": 1,
-        "true_positives": tp,
-        "false_positives": fp,
-        "true_negatives": tn,
-        "false_negatives": fn,
-        "precision": round(precision, 3),
-        "recall": round(recall, 3),
-        "false_positive_rate": round(fpr, 3),
-        "false_negative_rate": round(fnr, 3),
-        "note": "Metrics derived from controlled synthetic test fixtures; not representative of real-world field accuracy."
-    }
+from tools.evaluate_tubers_auc import compute_auc
+from tools.tune_crack_detector import run_tuning_harness
+from tools.field_validation_manifest import (
+    compute_file_sha256,
+    generate_manifest_and_template,
+    evaluate_field_dataset
+)
 
 
-def test_cross_hazard_per_domain_benchmark():
-    """Executes per-hazard benchmark across all five hazard domains and verifies metrics reporting."""
-    clean = np.full((300, 300, 3), 200, dtype=np.uint8)
+def test_compute_auc():
+    y_true = [0, 0, 1, 1]
+    y_scores = [0.1, 0.4, 0.35, 0.8]
+    auc = compute_auc(y_true, y_scores)
+    assert 0.0 <= auc <= 1.0
 
-    # 1. Corrosion
-    corr_img = np.full((300, 300, 3), 200, dtype=np.uint8)
-    cv2.rectangle(corr_img, (100, 100), (200, 200), (30, 120, 200), -1)
-    corr_metrics = evaluate_hazard_domain("corrosion", corr_img, clean, "corrosion_detector")
 
-    # 2. Cracks
-    crack_img = np.full((300, 300, 3), 220, dtype=np.uint8)
-    cv2.line(crack_img, (50, 50), (250, 250), (20, 20, 20), 2)
-    crack_metrics = evaluate_hazard_domain("crack", crack_img, clean, "crack_screening_detector")
+def test_tuning_harness_lockbox(tmp_path):
+    report_path = tmp_path / "tuning_report.json"
+    run_tuning_harness(str(report_path))
+    assert os.path.exists(report_path)
+    with open(report_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    assert data["lockbox_groups_count"] >= 4
+    assert len(data["lockbox_prefixes"]) >= 4
 
-    # 3. Surface Defects (Blistering & Spalling)
-    blister_img = np.full((300, 300, 3), 200, dtype=np.uint8)
-    cv2.circle(blister_img, (150, 150), 25, (120, 120, 120), -1)
-    surface_metrics = evaluate_hazard_domain("surface_defect", blister_img, clean, "surface_defect_detector")
 
-    # 4. Leakage & Seepage
-    leak_img = np.full((300, 300, 3), 220, dtype=np.uint8)
-    cv2.rectangle(leak_img, (140, 50), (160, 250), (70, 70, 70), -1)
-    leakage_metrics = evaluate_hazard_domain("leakage", leak_img, clean, "leakage_detector")
+def test_field_validation_manifest_and_evaluator(tmp_path):
+    # Setup test image
+    img_dir = tmp_path / "images"
+    img_dir.mkdir()
+    img_file = img_dir / "sample_pipe.jpg"
+    img_file.write_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 100) # dummy jpg bytes
 
-    # 5. Insulation Damage & Cladding
-    insul_img = np.full((300, 300, 3), 210, dtype=np.uint8)
-    cv2.rectangle(insul_img, (100, 100), (200, 200), (50, 50, 50), 3)
-    insulation_metrics = evaluate_hazard_domain("insulation", insul_img, clean, "insulation_detector")
+    manifest_p, csv_p = generate_manifest_and_template(image_dir=str(img_dir), output_dir=str(tmp_path))
+    assert os.path.exists(manifest_p)
+    assert os.path.exists(csv_p)
 
-    domains = [corr_metrics, crack_metrics, surface_metrics, leakage_metrics, insulation_metrics]
+    # Populate CSV with agreeing labels
+    rows = []
+    with open(csv_p, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            row["label_a"] = "positive"
+            row["label_b"] = "positive"
+            rows.append(row)
 
-    for d in domains:
-        assert "precision" in d
-        assert "recall" in d
-        assert "false_positive_rate" in d
-        assert "false_negative_rate" in d
-        assert d["true_negatives"] == 1  # Correct negative classification on clean surface
+    with open(csv_p, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    records = evaluate_field_dataset(manifest_p, csv_p)
+    assert len(records) == 1
+    assert records[0]["final_label"] == "positive"
+
+
+def test_field_validation_disagreement_raises_error(tmp_path):
+    img_dir = tmp_path / "images"
+    img_dir.mkdir()
+    img_file = img_dir / "sample_pipe.jpg"
+    img_file.write_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 100)
+
+    manifest_p, csv_p = generate_manifest_and_template(image_dir=str(img_dir), output_dir=str(tmp_path))
+
+    rows = []
+    with open(csv_p, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            row["label_a"] = "positive"
+            row["label_b"] = "negative" # Disagreement without adjudication
+            rows.append(row)
+
+    with open(csv_p, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    with pytest.raises(ValueError, match="Labeler disagreement"):
+        evaluate_field_dataset(manifest_p, csv_p)

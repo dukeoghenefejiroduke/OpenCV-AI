@@ -103,7 +103,7 @@ def test_human_review_transition(tmp_path):
         defect_category="crack", bbox=None, confidence=None,
         evidence_description="", limitations=[],
     )])
-    s.review_finding("F-1", "confirmed", notes="visible crack")
+    s.review_finding("F-1", "confirmed", notes="visible crack", reviewer_name="Admin")
     got = s.list_findings("INS-1")[0]
     assert got.human_review_status == "confirmed"
     assert got.review_notes == "visible crack"

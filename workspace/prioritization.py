@@ -32,6 +32,7 @@ def score(
     findings: List[Finding],
     history: List[Inspection],
     recurrence_window_days: int = 365,
+    crack_enabled_for_priority: bool = False,
 ) -> PriorityScore:
     rationale: List[str] = []
     factors: Dict[str, object] = {}
@@ -39,8 +40,8 @@ def score(
 
     confirmed = [f for f in findings if f.human_review_status == "confirmed"]
     rejected = [f for f in findings if f.human_review_status == "rejected"]
-    unreviewed = [f for f in findings if f.human_review_status == "unreviewed"]
-    needs_fu = [f for f in findings if f.human_review_status == "needs_followup"]
+    unreviewed = [f for f in findings if f.human_review_status in ("unreviewed", "pending_review")]
+    needs_fu = [f for f in findings if f.human_review_status in ("needs_followup", "retake_requested")]
 
     factors["confirmed_count"] = len(confirmed)
     factors["unreviewed_count"] = len(unreviewed)
@@ -52,6 +53,9 @@ def score(
 
     # 1. Confirmed findings — only human-confirmed evidence pushes priority up.
     for f in confirmed:
+        if f.defect_category == "crack" and not crack_enabled_for_priority:
+            rationale.append(f"Crack finding ({f.finding_id}) is candidate / human review required and excluded from priority scoring per config.")
+            continue
         # severity: leak/spalling/crack more consequential than coating
         sev = 2 if f.defect_category in ("leakage", "spalling", "crack") else 1
         points += sev

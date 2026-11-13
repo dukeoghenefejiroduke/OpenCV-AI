@@ -19,7 +19,7 @@ from agent.decision import evaluate_inspection
 class TestAdvancedFeatures(unittest.TestCase):
 
     def test_forecasting_velocity_and_projection(self):
-        history = [(0.0, 2.0), (10.0, 4.0)]
+        history = [(0.0, 2.0), (5.0, 3.0), (10.0, 4.0)]
         velocity = calculate_degradation_velocity(history)
         self.assertAlmostEqual(velocity, 0.2)  # 2% increase in 10 days = 0.2%/day
 
@@ -27,11 +27,12 @@ class TestAdvancedFeatures(unittest.TestCase):
         self.assertAlmostEqual(days, 20.0)  # (10 - 6) / 0.2 = 20 days
 
     def test_forecasting_insufficient_data(self):
-        # 0 or 1 observation should return 0.0
+        # <3 observations should return 0.0 (insufficient history)
         self.assertEqual(calculate_degradation_velocity([]), 0.0)
         self.assertEqual(calculate_degradation_velocity([(0.0, 2.0)]), 0.0)
+        self.assertEqual(calculate_degradation_velocity([(0.0, 2.0), (5.0, 3.0)]), 0.0)
         # Invalid data / non-finite should return 0.0
-        self.assertEqual(calculate_degradation_velocity([(0.0, float('nan')), (1.0, 5.0)]), 0.0)
+        self.assertEqual(calculate_degradation_velocity([(0.0, float('nan')), (1.0, 5.0), (2.0, 6.0)]), 0.0)
 
     def test_spalling_detection(self):
         img = np.full((200, 200, 3), 200, dtype=np.uint8)

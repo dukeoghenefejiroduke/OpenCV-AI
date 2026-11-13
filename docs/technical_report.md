@@ -8,7 +8,7 @@ Traditional industrial inspection relies heavily on manual visual auditing by ce
 
 The system architecture features:
 - **OpenCV-based Computer Vision:** Color-space segmentation in HSV, structural region-of-interest (ROI) isolation, and morphological filtering (`vision/inspection.py`) to quantify surface corrosion coverage and identify candidate defect regions.
-- **Deterministic Agent Decision Layer:** Rule-based decision logic (`agent/decision.py`) that translates quantitative vision metrics into actionable maintenance recommendations (`PASS`, `WARNING`, `CRITICAL`) without probabilistic hallucination or LLM randomness.
+- **Deterministic Agent Decision Layer:** Rule-based decision logic (`agent/decision.py`) that translates quantitative vision metrics into actionable maintenance recommendations (`PASS`, `WARNING`, `CRITICAL`) using rule-based logic; no LLMs in the safety path.
 - **Input Validation & Safety Boundaries:** Strict pre-inspection validation (`app/validation.py`) enforcing minimum dimension checks (128x128) and robust decodability verification to reject malformed or unsuitable inputs before they reach analytical pipelines.
 - **Human-in-the-Loop Oversight:** Mandatory `approval_required=True` gating for `CRITICAL` conditions, preventing automated or unsafe external work-order dispatch.
 - **Cloud-Ready AWS Lambda Architecture:** Containerized and CI-verified serverless architecture (`lambda_handler.py`, `.github/workflows/build-lambda.yml`) designed for scalable, stateless execution on Linux x86_64 with OpenCV 5.
@@ -244,7 +244,7 @@ To maintain scientific integrity, known failure modes and limitations are docume
 
 CementSight incorporates multiple layers of safety and responsible design:
 - **Pre-Inspection Validation:** Invalid or malformed inputs are rejected before analytical execution.
-- **Deterministic Rules:** Decisions are transparent and reproducible, eliminating black-box stochastic hallucinations.
+- **Deterministic Rules:** Decisions are transparent and reproducible, relying strictly on rule-based logic with no LLMs in the safety path.
 - **Conservative Fallbacks:** Malformed data or pipeline errors trigger safe fallback states.
 - **Mandatory Human Approval:** `CRITICAL` conditions require explicit human supervisor sign-off (`approval_required=True`).
 - **No Autonomous Dispatch:** The system acts strictly as a decision-support screener; it never dispatches external work orders automatically.
@@ -317,7 +317,7 @@ Continuous integration is managed via GitHub Actions (`.github/workflows/build-l
 
 CementSight introduces several practical innovations for industrial computer vision:
 - **Structural ROI Restriction:** Effectively suppresses background rust contamination in complex industrial scenes.
-- **Deterministic Vision-to-Action Pipeline:** Bridges low-level image processing with high-level maintenance recommendations without probabilistic LLM hallucination.
+- **Deterministic Vision-to-Action Pipeline:** Bridges low-level image processing with high-level maintenance recommendations using rule-based decisions; no LLM in the safety path.
 - **Explicit Human Approval Gate:** Enforces safety governance for critical degradation findings.
 - **Pre-Inspection Validation:** Rejects unsuitable inputs before analytical execution.
 - **Cloud-Ready OpenCV 5 Packaging:** Demonstrates clean packaging within AWS Lambda size limits.

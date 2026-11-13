@@ -181,6 +181,10 @@ class CementSightHandler(http.server.SimpleHTTPRequestHandler):
             self.path = "/app/dashboard.html"
             return super().do_GET()
 
+        elif path == "/tailwind.css":
+            self.path = "/app/tailwind.css"
+            return super().do_GET()
+
         elif path == "/favicon.ico":
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
@@ -564,11 +568,34 @@ th {{ color: #94a3b8; }}
                     if not ok:
                         _json_response(self, {"error": f"image validation: {err}"}, 400); return
 
+                    insp_id = "INS-" + uuid.uuid4().hex[:12]
+                    annotated_output_path = os.path.join(OUTPUT_DIR, f"live_annotated_{insp_id}.jpg")
+                    roi_output_path = os.path.join(OUTPUT_DIR, f"foreground_roi_{insp_id}.jpg")
+
                     orch = MultiHazardOrchestrator()
-                    result = orch.run_inspections(decoded)
+                    result = orch.run_inspections(decoded, output_annotated_path=annotated_output_path, output_roi_path=roi_output_path, use_roi=True)
                     authoritative = result.get("authoritative_inspection_report", {})
 
-                    insp_id = "INS-" + uuid.uuid4().hex[:12]
+                    decision = evaluate_inspection(authoritative)
+                    work_order = format_cmms_work_order(asset_id, decision, authoritative.get("corrosion_percentage", 0.0))
+
+                    history_entry = {
+                        "inspection_id": insp_id,
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "asset_id": asset_id,
+                        "input_filename": image_name or os.path.basename(img_abs),
+                        "input_type": "upload" if image_bytes else "image",
+                        "decision": decision.decision,
+                        "action": decision.action,
+                        "approval_required": decision.approval_required,
+                        "corrosion_percentage": authoritative.get("corrosion_percentage", 0.0),
+                        "region_count": authoritative.get("region_count", 0),
+                        "annotated_output": f"data/outputs/live_annotated_{insp_id}.jpg",
+                        "cmms_status": work_order["dispatch_status"],
+                        "forecast_status": "Workspace multi-hazard inspection analysis completed."
+                    }
+                    save_history(history_entry)
+
                     insp = Inspection(
                         inspection_id=insp_id,
                         asset_id=asset_id,
@@ -602,6 +629,7 @@ th {{ color: #94a3b8; }}
                         "inspection_id": insp_id,
                         "asset_id": asset_id,
                         "image_sha256": image_sha,
+                        "annotated_output": f"data/outputs/live_annotated_{insp_id}.jpg",
                         "authoritative_inspection_report": authoritative,
                         "findings_count": len(findings),
                         "detector_summaries": result.get("detector_summaries", []),
@@ -847,8 +875,8 @@ th {{ color: #94a3b8; }}
             velocity = calculate_degradation_velocity(asset_obs)
             days_to_crit = project_time_to_critical(inspection_report.get("corrosion_percentage", 0.0), velocity)
             
-            if velocity <= 0.0 or len(asset_obs) < 2:
-                forecast_status = "Insufficient historical data for a reliable trend estimate."
+            if velocity <= 0.0 or len(asset_obs) < 3:
+                forecast_status = "insufficient history"
                 proj_display = "N/A"
                 vel_display = 0.0
             else:

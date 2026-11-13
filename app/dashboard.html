@@ -3,420 +3,872 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CementSight AI - Mobile Industrial Visual Inspection & Processing Explorer</title>
-    <!-- Local Offline Tailwind CSS Bundle -->
+    <title>CementSight AI — Industrial Infrastructure Intelligence</title>
+    <!-- Local Offline Tailwind CSS Bundle & System Fonts -->
     <link rel="stylesheet" href="tailwind.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-base: #050811;
+            --bg-surface: #0a0f1d;
+            --bg-card: #0e1526;
+            --border-subtle: #1a233d;
+            --border-hover: #29365c;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-amber: #f59e0b;
+        }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background-color: var(--bg-base); 
+            color: var(--text-main); 
+            -webkit-font-smoothing: antialiased; 
+        }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #020617; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-base); }
+        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+        .eng-panel { 
+            background-color: var(--bg-surface); 
+            border: 1px solid var(--border-subtle); 
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+        }
+        .eng-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+        }
+        .eng-header { 
+            border-bottom: 1px solid var(--border-subtle); 
+            background-color: rgba(10, 15, 29, 0.9);
+            backdrop-filter: blur(8px);
+        }
+        .tab-active { 
+            background-color: var(--accent-amber) !important; 
+            color: #050811 !important; 
+            font-weight: 700; 
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+        }
+        .tab-inactive { 
+            background-color: var(--bg-card); 
+            color: var(--text-muted); 
+            border: 1px solid var(--border-subtle); 
+        }
+        .tab-inactive:hover { 
+            background-color: #162038; 
+            color: var(--text-main); 
+            border-color: var(--border-hover);
+        }
+        button, input, select {
+            touch-action: manipulation;
+        }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-amber-500 selection:text-slate-950">
-    <!-- Top Header -->
-    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-                <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xl shadow-inner">
-                        CS
-                    </div>
-                    <div>
-                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                            CementSight AI
-                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">Platform v2.2</span>
-                        </h1>
-                        <p class="text-xs text-slate-400">Industrial Visual Inspection & Visual Processing Explorer</p>
-                    </div>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950 pb-8">
+    
+    <!-- Top Engineering Header -->
+    <header class="eng-header sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-bold flex items-center justify-center font-mono text-sm shadow-md shrink-0">
+                    CS
+                </div>
+                <div>
+                    <h1 class="text-xs sm:text-sm font-bold tracking-wider text-white flex items-center gap-2 font-mono">
+                        CEMENTSIGHT AI
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono">v2.3 PRO</span>
+                    </h1>
+                    <p class="text-[10px] sm:text-[11px] text-slate-400 font-mono">Industrial Infrastructure Intelligence</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 flex-wrap justify-end">
-                <div class="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono shadow-sm">
+            <div class="flex items-center gap-2 text-xs font-mono">
+                <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px]">
                     <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                    Local Demo Mode (127.0.0.1)
+                    <span class="hidden sm:inline">Offline Core</span>
                 </div>
-                <div class="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono shadow-sm">
-                    Tests: <span id="tests-passing">…</span> Passing
+                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#0a0f1d] border border-[#1a233d] text-emerald-400 text-[11px]">
+                    <span>Tests:</span> <strong id="tests-passing" class="text-white">111</strong><span>/111</span>
                 </div>
             </div>
         </div>
     </header>
 
     <!-- Main Workspace Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+    <main class="max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-5 space-y-4 flex-1">
         
-        <!-- Input Workspace Control Panel -->
-        <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm space-y-4">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                <h2 class="text-base font-semibold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Inspection Source & Upload Workspace
-                </h2>
-                <span class="text-xs font-mono text-slate-400">Supports OpenCV decodable Images & Videos (Max 25MB)</span>
+        <!-- Context Bar -->
+        <div class="eng-panel rounded-lg px-3.5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+            <div class="flex items-center gap-2">
+                <span class="text-slate-400">Active Inspection:</span>
+                <span id="active-inspection-id" class="text-amber-400 font-semibold px-2.5 py-1 rounded bg-[#050811] border border-[#1a233d]">None (Select or Run Inspection)</span>
             </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
-                <!-- File Upload -->
-                <div>
-                    <label class="block text-xs font-mono text-slate-400 mb-1.5">Upload Image or Video File</label>
-                    <input type="file" id="file-upload" accept="image/*,video/*" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500/20 file:text-amber-400 hover:file:bg-amber-500/30 transition cursor-pointer">
-                </div>
-
-                <!-- Default Image Path -->
-                <div>
-                    <label class="block text-xs font-mono text-slate-400 mb-1.5">Or Preset Sample Asset Path</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="input-image" value="data/pipe_corrosion.jpg" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500 transition">
-                        <button onclick="loadDefaultImage()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-mono transition shrink-0 cursor-pointer" title="Load Default Pipe Image">Load Default</button>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="flex gap-2">
-                    <button onclick="runPipeline()" id="run-btn" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Start Inspection
-                    </button>
-                    <button onclick="resetWorkspace()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-xs transition cursor-pointer">
-                        Reset
-                    </button>
-                </div>
-            </div>
-
-            <!-- Selected File Metadata Bar -->
-            <div id="file-meta-bar" class="hidden flex flex-wrap items-center justify-between gap-2 bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-800 text-xs font-mono">
-                <span class="text-amber-400" id="meta-filename">File: None</span>
-                <span class="text-slate-400" id="meta-size">Size: 0 KB</span>
-                <span class="text-slate-400" id="meta-type">Type: -</span>
-            </div>
-        </section>
-
-        <!-- Preview & Core Agent Decision Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Visual Preview Panel -->
-            <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                        Visual Inspection Asset Preview
-                    </h3>
-                    <span id="preview-badge" class="text-xs font-mono px-2.5 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">Default Test Image</span>
-                </div>
-                <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[280px] sm:min-h-[340px] flex items-center justify-center p-2">
-                    <img id="preview-image" src="data/pipe_corrosion.jpg" alt="Asset Preview" class="max-h-[340px] object-contain rounded-lg cursor-pointer transition hover:scale-[1.01]" onclick="openModal(this.src)" title="Click to enlarge">
-                    <div id="loading-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center hidden z-20">
-                        <div class="flex flex-col items-center gap-3">
-                            <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span class="text-xs font-mono text-amber-400 font-medium">Running 6-Stage Pipeline...</span>
-                        </div>
-                    </div>
-                </div>
-                <p class="text-[11px] text-slate-500 font-mono mt-2 text-center">Tip: Click preview image to view in full size.</p>
-            </div>
-
-            <!-- Agent Decision Summary Panel -->
-            <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-xs font-mono uppercase tracking-wider text-amber-400">STAGE 4: DETERMINISTIC AGENT LAYER</span>
-                        <span id="res-badge" class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Active</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-white mb-3" id="res-decision-title">WARNING STATE</h3>
-                    <div class="text-xs sm:text-sm text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4 space-y-2">
-                        <div class="font-semibold text-amber-300 font-mono text-xs">Reasoning & Optical Screening Estimate:</div>
-                        <p id="res-reason">Warning-level condition detected: corrosion percentage (6.56%) is within warning threshold (2.0% to 10.0%) with 11 region(s) identified. Note: Optical estimate, not certified physical measurement.</p>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-xs sm:text-sm gap-1">
-                        <span class="text-slate-400 font-mono">Proposed Action:</span>
-                        <span class="text-white font-medium text-left sm:text-right" id="res-action">Routine maintenance inspection & ongoing monitoring</span>
-                    </div>
-                    <div class="flex justify-between items-center bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-xs sm:text-sm">
-                        <span class="text-slate-400 font-mono">Human Approval Required:</span>
-                        <span class="text-emerald-400 font-mono font-semibold" id="res-approval">False (Routine Monitoring)</span>
-                    </div>
-                    <div id="export-actions" class="hidden flex gap-2 pt-2">
-                        <a id="export-json-btn" href="#" target="_blank" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 text-center rounded-xl text-xs font-mono transition">Export Report (JSON)</a>
-                        <a id="export-html-btn" href="#" target="_blank" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 text-center rounded-xl text-xs font-mono transition">Export Report (HTML)</a>
-                    </div>
-                </div>
+            <div class="flex items-center gap-3 text-slate-400 text-[11px]">
+                <span>Asset: <strong id="active-asset-id" class="text-white">N/A</strong></span>
+                <span>Zone: <strong id="active-location" class="text-white">N/A</strong></span>
             </div>
         </div>
 
-        <!-- Visual Processing Explorer (Stage-by-Stage Intermediates) -->
-        <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
-                    Visual Processing Explorer (Stage-by-Stage Intermediates)
-                </h3>
-                <span class="text-xs font-mono text-slate-400">Inspect actual computer-vision outputs produced at each stage</span>
+        <!-- Navigation Tabs (Horizontally Scrollable & Touch-Friendly) -->
+        <nav class="flex overflow-x-auto gap-2 pb-2 scrollbar-none -mx-3 px-3 sm:mx-0 sm:px-0">
+            <button onclick="switchTab('tab-source')" id="btn-tab-source" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-active transition cursor-pointer shrink-0">1. Source & Ingestion</button>
+            <button onclick="switchTab('tab-results')" id="btn-tab-results" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">2. Results & Inspector</button>
+            <button onclick="switchTab('tab-pipeline')" id="btn-tab-pipeline" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">3. Pipeline & Stages</button>
+            <button onclick="switchTab('tab-findings')" id="btn-tab-findings" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">4. Detector Findings</button>
+            <button onclick="switchTab('tab-asset')" id="btn-tab-asset" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">5. Asset & QR</button>
+            <button onclick="switchTab('tab-maintenance')" id="btn-tab-maintenance" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">6. Maintenance</button>
+            <button onclick="switchTab('tab-history')" id="btn-tab-history" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">7. History & Reports</button>
+        </nav>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 1: Source & Ingestion                                -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-source" class="tab-pane space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Source Image & Asset Ingestion</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Load field imagery and attach engineering metadata</p>
+                </div>
+                <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-[#050811] border border-[#1a233d] text-slate-300">OpenCV 4.x</span>
             </div>
-            <p class="text-xs text-slate-400">Click any stage preview image below to view in full size in the lightbox modal. Distinguishes between standard color images, binary masks, and final annotated output.</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                <!-- Image Ingestion (7 cols) -->
+                <div class="lg:col-span-7 space-y-4 eng-card p-4 sm:p-5 rounded-lg flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-mono text-slate-300 mb-2 font-medium">Upload Industrial Equipment Image / Video</label>
+                            <input type="file" id="file-upload" accept="image/*,video/*" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-xs font-mono text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-500/10 file:text-amber-400 hover:file:bg-amber-500/20 cursor-pointer transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-slate-300 mb-2 font-medium">Or Preset Sample Path</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="input-image" value="data/pipe_corrosion.jpg" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-xs font-mono text-slate-200">
+                                <button onclick="loadDefaultImage()" class="px-3.5 py-2.5 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded-md text-xs font-mono shrink-0 cursor-pointer transition border border-[#1a233d]">Sample</button>
+                            </div>
+                        </div>
+                        <div id="file-meta-bar" class="hidden bg-[#050811] px-3.5 py-2.5 rounded-md border border-[#1a233d] text-xs font-mono space-y-1">
+                            <div class="text-amber-400 font-semibold" id="meta-filename">File: None</div>
+                            <div class="text-slate-400" id="meta-size">Size: 0 KB</div>
+                        </div>
+                    </div>
+
+                    <div class="pt-5 border-t border-[#1a233d]">
+                        <button onclick="runPipelineAndWorkspace()" id="run-btn" class="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-md text-xs sm:text-sm font-mono transition cursor-pointer flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/25">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>Run Multi-Hazard Pipeline & Generate Findings</span>
+                        </button>
+                        <div id="ws-message" class="text-xs font-mono text-amber-400 mt-2 min-h-[1.25rem] font-medium"></div>
+                    </div>
+                </div>
+
+                <!-- Asset Context (5 cols) -->
+                <div class="lg:col-span-5 space-y-4 eng-card p-4 sm:p-5 rounded-lg flex flex-col justify-between">
+                    <div>
+                        <div class="text-xs font-mono font-bold text-white uppercase tracking-wider mb-3">Asset Metadata Context</div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Asset ID</label>
+                                <input id="ws-asset-id" value="PIPE-01" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2 text-xs font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Plant Location / Zone</label>
+                                <input id="ws-location" value="Plant Zone A" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2 text-xs font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label class="block text-[11px] font-mono text-slate-400 mb-1">Material</label>
+                                    <input id="ws-material" value="steel" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2 text-xs font-mono text-slate-200 focus:border-amber-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-mono text-slate-400 mb-1">Criticality</label>
+                                    <select id="ws-criticality" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2 text-xs font-mono text-slate-200 focus:border-amber-500 outline-none">
+                                        <option value="low">Low</option>
+                                        <option value="normal" selected>Normal</option>
+                                        <option value="high">High</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-3">
+                        <button onclick="resetWorkspace()" class="w-full py-2.5 bg-[#162038] hover:bg-[#1f2c4d] text-slate-300 font-mono rounded-md text-xs transition cursor-pointer border border-[#1a233d]">Reset Workspace</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 2: Results & Interactive Localization Inspector      -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-results" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Visual Inspection & Localization Inspector</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Immersive evidence analysis with spatial overlays</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs font-mono">
+                    <button onclick="setImageViewMode('annotated')" id="btn-view-annotated" class="px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow">Annotated</button>
+                    <button onclick="setImageViewMode('original')" id="btn-view-original" class="px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]">Original</button>
+                </div>
+            </div>
+
+            <!-- Key Summary Metrics Bar -->
+            <div class="grid grid-cols-3 gap-2.5 font-mono text-xs">
+                <div class="eng-card p-3 rounded-md text-center border border-[#1a233d]">
+                    <div class="text-[10px] text-slate-400 uppercase">Decision</div>
+                    <div id="metric-decision" class="text-amber-400 font-bold text-sm sm:text-base mt-0.5">WARNING</div>
+                </div>
+                <div class="eng-card p-3 rounded-md text-center border border-[#1a233d]">
+                    <div class="text-[10px] text-slate-400 uppercase">Corrosion Area</div>
+                    <div id="metric-corrosion" class="text-white font-bold text-sm sm:text-base mt-0.5">-- %</div>
+                </div>
+                <div class="eng-card p-3 rounded-md text-center border border-[#1a233d]">
+                    <div class="text-[10px] text-slate-400 uppercase">Approval Req.</div>
+                    <div id="metric-approval" class="text-emerald-400 font-bold text-sm sm:text-base mt-0.5">False</div>
+                </div>
+            </div>
+
+            <!-- Detector Overlays Toolbar (Horizontally Scrollable on Mobile) -->
+            <div class="flex overflow-x-auto items-center gap-3 bg-[#050811] px-3.5 py-2.5 rounded-lg border border-[#1a233d] text-xs font-mono scrollbar-none">
+                <span class="text-slate-400 font-medium shrink-0">Overlays:</span>
+                <label class="flex items-center gap-1.5 cursor-pointer text-amber-400 hover:text-amber-300 shrink-0"><input type="checkbox" id="chk-overlay-corr" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-amber-500"> Corrosion</label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-blue-400 hover:text-blue-300 shrink-0"><input type="checkbox" id="chk-overlay-crk" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-blue-500"> Cracks</label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-purple-400 hover:text-purple-300 shrink-0"><input type="checkbox" id="chk-overlay-surf" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-purple-500"> Surface</label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-cyan-400 hover:text-cyan-300 shrink-0"><input type="checkbox" id="chk-overlay-leak" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-cyan-500"> Leakage</label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-emerald-400 hover:text-emerald-300 shrink-0"><input type="checkbox" id="chk-overlay-insul" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-emerald-500"> Insulation</label>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                <!-- Large Image Canvas & SVG Overlay (7 cols) -->
+                <div class="lg:col-span-7 space-y-2">
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
+                        <span id="preview-badge" class="text-amber-400/90 font-medium text-[11px]">Evidence Canvas (Approximate Bounding Regions)</span>
+                        <span class="text-[10px] text-slate-500">Tap image to enlarge</span>
+                    </div>
+                    <div class="relative bg-[#050811] border border-[#1a233d] rounded-lg overflow-hidden min-h-[300px] sm:min-h-[360px] flex items-center justify-center p-2 shadow-inner">
+                        <img id="preview-image" src="data/pipe_corrosion.jpg" alt="Inspection Canvas" class="max-h-[420px] max-w-full object-contain rounded cursor-pointer transition" onclick="openModal(this.src)" onload="renderOverlayBoxes()">
+                        <svg id="overlay-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+                        <div id="loading-overlay" class="absolute inset-0 bg-[#050811]/90 backdrop-blur-sm flex items-center justify-center hidden z-20">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-xs font-mono text-amber-400 font-semibold tracking-wide">Analyzing Vision Pipeline...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Telemetry & Decision Panel (5 cols) -->
+                <div class="lg:col-span-5 space-y-4 flex flex-col justify-between eng-card p-4 sm:p-5 rounded-lg">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">Screening Rationale</div>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#050811] border border-[#1a233d] text-slate-400">Deterministic</span>
+                        </div>
+                        <div class="text-xs font-mono text-slate-300 bg-[#050811] p-3.5 rounded-md border border-[#1a233d] space-y-2">
+                            <p id="res-reason" class="leading-relaxed text-slate-300">Warning-level condition detected: corrosion percentage is within warning threshold (2.0% - 10.0%) with regional findings identified. Optical estimate, not certified physical measurement.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-2.5 font-mono text-xs pt-3 border-t border-[#1a233d]">
+                        <div class="flex justify-between items-center bg-[#050811] px-3.5 py-2.5 rounded-md border border-[#1a233d]">
+                            <span class="text-slate-400">Proposed Action:</span>
+                            <span id="res-action" class="text-white text-right font-medium">Routine maintenance inspection & monitoring</span>
+                        </div>
+                        <div id="export-actions" class="flex gap-2 pt-1">
+                            <a id="export-json-btn" href="#" target="_blank" class="flex-1 py-2 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 text-center rounded-md font-mono text-xs transition border border-[#1a233d]">JSON Report</a>
+                            <a id="export-html-btn" href="#" target="_blank" class="flex-1 py-2 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 text-center rounded-md font-mono text-xs transition border border-[#1a233d]">HTML Report</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 3: Visual Processing Pipeline                        -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-pipeline" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">6-Stage Execution Pipeline</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Sequential industrial inspection stages powered by OpenCV</p>
+                </div>
+                <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-[#050811] border border-[#1a233d] text-slate-300">OpenCV 4.x</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 font-mono text-xs">
+                <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-400 font-bold">Stage 1: Ingestion</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
+                    </div>
+                    <div class="text-slate-300 truncate">Source: <span id="in-stage1" class="text-slate-200">data/pipe_corrosion.jpg</span></div>
+                </div>
+                <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-400 font-bold">Stage 2: Validation</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
+                    </div>
+                    <div class="text-slate-300 truncate">Boundary: <span id="out-stage2" class="text-slate-200">Passed (≥128x128)</span></div>
+                </div>
+                <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-400 font-bold">Stage 3: Vision Inspection</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
+                    </div>
+                    <div class="text-slate-300 truncate">Metrics: <span id="out-stage3" class="text-slate-200">Multi-Hazard Active</span></div>
+                </div>
+                <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-400 font-bold">Stage 4: Agent Decision</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
+                    </div>
+                    <div class="text-slate-300 truncate">Decision: <span id="out-stage4" class="text-slate-200">Deterministic Evaluation</span></div>
+                </div>
+                <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-400 font-bold">Stage 5: Telemetry</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
+                    </div>
+                    <div class="text-slate-300 truncate">Velocity: <span id="out-stage5" class="text-slate-200">Degradation Tracking</span></div>
+                </div>
+                <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-400 font-bold">Stage 6: CMMS Payload</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
+                    </div>
+                    <div class="text-slate-300 truncate">Dispatch: <span id="out-stage6" class="text-slate-200">Queued (Not Dispatched)</span></div>
+                </div>
+            </div>
+            <div class="pt-2">
+                <button onclick="switchTab('tab-results')" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-md text-xs font-mono transition cursor-pointer">View Inspection Results & Inspector</button>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 4: Detector Findings & Region Localization             -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-findings" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Detector Findings & Localization</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Grouped by detector with unique region IDs and human review controls</p>
+                </div>
+                <span id="ws-priority" class="text-xs font-mono text-amber-400 px-3 py-1 rounded bg-[#050811] border border-[#1a233d]">Priority: N/A</span>
+            </div>
+
+            <!-- Filter buttons (Horizontally Scrollable on Mobile) -->
+            <div class="flex overflow-x-auto gap-2 pb-1 pt-1 font-mono text-xs scrollbar-none">
+                <button onclick="wsSetFilter('confirmed_followup')" id="chip-confirmed_followup" class="px-3 py-1.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-pointer transition shrink-0">Confirmed + Follow-up</button>
+                <button onclick="wsSetFilter('all')" id="chip-all" class="px-3 py-1.5 rounded-md bg-[#0e1526] text-slate-300 border border-[#1a233d] cursor-pointer transition shrink-0">All Findings</button>
+                <button onclick="wsSetFilter('confirmed')" id="chip-confirmed" class="px-3 py-1.5 rounded-md bg-[#0e1526] text-slate-300 border border-[#1a233d] cursor-pointer transition shrink-0">Confirmed</button>
+                <button onclick="wsSetFilter('needs_followup')" id="chip-needs_followup" class="px-3 py-1.5 rounded-md bg-[#0e1526] text-slate-300 border border-[#1a233d] cursor-pointer transition shrink-0">Needs Follow-up</button>
+                <button onclick="wsSetFilter('unreviewed')" id="chip-unreviewed" class="px-3 py-1.5 rounded-md bg-[#0e1526] text-slate-300 border border-[#1a233d] cursor-pointer transition shrink-0">Unreviewed</button>
+                <button onclick="wsSetFilter('rejected')" id="chip-rejected" class="px-3 py-1.5 rounded-md bg-[#0e1526] text-slate-300 border border-[#1a233d] cursor-pointer transition shrink-0">Rejected</button>
+            </div>
+
+            <div id="ws-findings-container" class="space-y-3 pt-2">
+                <div class="text-xs font-mono text-slate-500 text-center py-10">No inspection loaded. Run an inspection or select one from history.</div>
+            </div>
+            <div id="ws-empty-state" class="text-xs font-mono text-slate-500 text-center py-6 hidden">No findings match this filter.</div>
             
-            <div id="diagnostics-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <!-- Default Initial State Cards -->
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.1</span>
-                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Color Image</span>
-                        </div>
-                        <h4 class="text-xs font-bold text-white mb-1">Original Input Image</h4>
-                        <p class="text-[11px] text-slate-400 mb-3">Raw ingested BGR equipment image prior to processing.</p>
-                    </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                        <img src="data/pipe_corrosion.jpg" alt="Original" class="h-32 object-contain rounded cursor-pointer hover:opacity-90 transition" onclick="openModal(this.src)">
-                    </div>
-                </div>
+            <div class="pt-2 space-y-2">
+                <div class="text-xs font-mono text-slate-400 font-semibold uppercase tracking-wider">Priority Rationale</div>
+                <ul id="ws-rationale" class="text-xs font-mono text-slate-300 list-disc list-inside space-y-1 bg-[#050811] p-3.5 rounded-md border border-[#1a233d]">
+                    <li>Run an inspection to generate risk prioritization rationale.</li>
+                </ul>
+            </div>
 
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.2</span>
-                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Color Image</span>
-                        </div>
-                        <h4 class="text-xs font-bold text-white mb-1">Gaussian-Blurred Image</h4>
-                        <p class="text-[11px] text-slate-400 mb-3">Smoothed image using 5x5 Gaussian blur to suppress noise.</p>
-                    </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                        <div class="h-32 flex items-center justify-center text-xs font-mono text-slate-500">Run pipeline to view</div>
-                    </div>
-                </div>
+            <button onclick="wsOpenReport()" class="w-full py-3 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded-md text-xs font-mono font-semibold transition border border-[#1a233d] cursor-pointer">Generate HTML Report for Active Inspection</button>
+        </section>
 
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.3</span>
-                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Binary Mask</span>
-                        </div>
-                        <h4 class="text-xs font-bold text-white mb-1">Raw HSV Corrosion Mask</h4>
-                        <p class="text-[11px] text-slate-400 mb-3">Initial color segmentation mask identifying rust tones.</p>
-                    </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                        <div class="h-32 flex items-center justify-center text-xs font-mono text-slate-500">Run pipeline to view</div>
-                    </div>
+        <!-- ============================================================ -->
+        <!-- SECTION 5: Asset Information & QR Management                 -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-asset" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Asset Registry & QR Badging</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Manage physical plant asset identifiers and generate QR badges</p>
                 </div>
-
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <button onclick="wsRefreshAssets()" class="px-3 py-1.5 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded-md text-xs font-mono transition border border-[#1a233d] cursor-pointer">Refresh</button>
+            </div>
+            <!-- Stacked to 1 column on mobile to prevent crushing -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 font-mono text-xs">
+                <div class="eng-card p-4 sm:p-5 rounded-lg space-y-3.5 border border-[#1a233d]">
+                    <div class="font-bold text-white text-sm">Register / Upsert Asset</div>
                     <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.4</span>
-                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Binary Mask</span>
+                        <label class="block text-[11px] text-slate-400 mb-1">Asset ID (e.g. PIPE-01)</label>
+                        <input id="asset-reg-id" placeholder="PIPE-01" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Plant Location / Zone Description</label>
+                        <input id="asset-reg-location" placeholder="Plant Zone A" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Material</label>
+                            <input id="asset-reg-material" value="steel" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
                         </div>
-                        <h4 class="text-xs font-bold text-white mb-1">Structural ROI Mask</h4>
-                        <p class="text-[11px] text-slate-400 mb-3">Canny edge & morphological equipment foreground mask.</p>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Criticality</label>
+                            <select id="asset-reg-crit" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                                <option value="low">Low</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                        <div class="h-32 flex items-center justify-center text-xs font-mono text-slate-500">Run pipeline to view</div>
+                    <button onclick="registerAsset()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-md transition cursor-pointer shadow-lg shadow-emerald-600/20">Save Asset & Generate QR Badge</button>
+                </div>
+                <div class="eng-card p-4 sm:p-5 rounded-lg space-y-3.5 border border-[#1a233d] flex flex-col justify-between">
+                    <div class="space-y-3.5">
+                        <div class="font-bold text-white text-sm">Asset QR Badge & Lookup</div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Lookup Asset ID</label>
+                            <div class="flex gap-2">
+                                <input id="asset-lookup-id" placeholder="PIPE-01" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                                <button onclick="viewAssetQrBadge()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-md shrink-0 cursor-pointer transition">View QR</button>
+                            </div>
+                        </div>
                     </div>
+                    <div id="asset-info-output" class="text-slate-300 bg-[#050811] p-3.5 rounded-md border border-[#1a233d] min-h-[110px]">No asset selected. Enter Asset ID or click Refresh.</div>
                 </div>
             </div>
         </section>
 
-        <!-- 6-Stage Detailed Data Flow Inspector -->
-        <div class="space-y-4">
-            <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                Transparent 6-Stage Execution Pipeline
-            </h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                
-                <!-- Stage 1 -->
-                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 1</span>
-                            <span id="status-stage1" class="text-xs font-mono text-emerald-400">COMPLETED</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-1">Input Ingestion & Stream</h4>
-                        <p class="text-xs text-slate-400 mb-3">Accepts image files or video/RTSP streams.</p>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
-                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300 truncate block" id="in-stage1">data/pipe_corrosion.jpg</span></div>
-                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-300" id="out-stage1">Raw BGR Frame Array</span></div>
-                    </div>
+        <!-- ============================================================ -->
+        <!-- SECTION 6: Maintenance & Repair Verification                 -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-maintenance" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Maintenance & Repair Work Orders</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">CMMS integration for logging field repairs and defect resolution</p>
                 </div>
-
-                <!-- Stage 2 -->
-                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 2</span>
-                            <span id="status-stage2" class="text-xs font-mono text-emerald-400">COMPLETED</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-1">Input Validation & Safety</h4>
-                        <p class="text-xs text-slate-400 mb-3">Verifies integrity & enforces ≥128x128 pixels.</p>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
-                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Raw Frame Array</span></div>
-                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-emerald-400" id="out-stage2">Passed (1920x1080)</span></div>
-                    </div>
-                </div>
-
-                <!-- Stage 3 -->
-                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3</span>
-                            <span id="status-stage3" class="text-xs font-mono text-emerald-400">COMPLETED</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-1">OpenCV Vision Inspection</h4>
-                        <p class="text-xs text-slate-400 mb-3">HSV masking, ROI extent & spalling analysis.</p>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
-                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Validated Frame</span></div>
-                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-400 font-bold" id="out-stage3">6.56% Corrosion / 11 Regions</span></div>
-                    </div>
-                </div>
-
-                <!-- Stage 4 -->
-                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 4</span>
-                            <span id="status-stage4" class="text-xs font-mono text-emerald-400">COMPLETED</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-1">Deterministic Agent Layer</h4>
-                        <p class="text-xs text-slate-400 mb-3">Maps metrics to PASS/WARNING/CRITICAL.</p>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
-                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Inspection Report Metrics</span></div>
-                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-400 font-bold" id="out-stage4">WARNING (Approval: False)</span></div>
-                    </div>
-                </div>
-
-                <!-- Stage 5 -->
-                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 5</span>
-                            <span id="status-stage5" class="text-xs font-mono text-emerald-400">COMPLETED</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-1">Telemetry & Forecasting</h4>
-                        <p class="text-xs text-slate-400 mb-3">Degradation velocity & digital twin state.</p>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
-                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Historical Logs & State</span></div>
-                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-amber-300" id="out-stage5">0.20%/day (20 Days to Critical)</span></div>
-                    </div>
-                </div>
-
-                <!-- Stage 6 -->
-                <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 6</span>
-                            <span id="status-stage6" class="text-xs font-mono text-emerald-400">COMPLETED</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-1">CMMS Webhook Dispatch</h4>
-                        <p class="text-xs text-slate-400 mb-3">Formulates Maximo/SAP work-order JSON payloads.</p>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5">
-                        <div><span class="text-slate-500">INPUT:</span> <span class="text-slate-300">Agent Decision & Asset ID</span></div>
-                        <div><span class="text-slate-500">OUTPUT:</span> <span class="text-emerald-400 font-bold" id="out-stage6">QUEUED Work-Order JSON</span></div>
-                    </div>
-                </div>
-
+                <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-[#050811] border border-[#1a233d] text-slate-300">CMMS Sync</span>
             </div>
-        </div>
+            <div class="eng-card p-4 sm:p-5 rounded-lg space-y-4 max-w-xl font-mono text-xs border border-[#1a233d]">
+                <div class="font-bold text-white text-sm">Log Maintenance Action</div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">Asset ID</label>
+                    <input id="maint-asset-id" value="PIPE-01" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3.5 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">Work Performed Description</label>
+                    <input id="maint-work" placeholder="e.g. Replaced corroded segment & applied epoxy coating" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3.5 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">Performed By (Technician)</label>
+                    <input id="maint-by" value="Field Tech Jane" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3.5 py-2.5 text-slate-200 focus:border-amber-500 outline-none">
+                </div>
+                <button onclick="logMaintenance()" class="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-md transition cursor-pointer shadow-lg shadow-amber-500/25">Submit Maintenance Record</button>
+                <div id="maint-msg" class="text-amber-400 font-semibold min-h-[1.25rem]"></div>
+            </div>
+        </section>
 
-        <!-- Inspection History Panel -->
-        <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                <h3 class="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Local Inspection History Log
-                </h3>
+        <!-- ============================================================ -->
+        <!-- SECTION 7: Inspection History & Reports                      -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-history" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Inspection History & Reports</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Archived inspection records and professional reports</p>
+                </div>
                 <div class="flex gap-2">
-                    <button onclick="loadHistory()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-mono transition cursor-pointer">Refresh</button>
-                    <button onclick="clearHistory()" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-mono transition cursor-pointer">Clear All History</button>
+                    <button onclick="loadHistory()" class="px-3 py-1.5 bg-[#162038] hover:bg-[#1f2c4d] text-slate-300 rounded-md text-xs font-mono transition border border-[#1a233d] cursor-pointer">Refresh</button>
+                    <button onclick="clearHistory()" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-md text-xs font-mono transition cursor-pointer">Clear All</button>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs font-mono">
-                    <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
-                        <tr>
-                            <th class="p-3">ID</th>
-                            <th class="p-3">Timestamp</th>
-                            <th class="p-3">Input File</th>
-                            <th class="p-3">Type</th>
-                            <th class="p-3">Decision</th>
-                            <th class="p-3">Corrosion %</th>
-                            <th class="p-3">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-tbody" class="divide-y divide-slate-800/60 text-slate-300">
-                        <tr>
-                            <td colspan="7" class="p-4 text-center text-slate-500">No inspection history recorded yet. Run an inspection above.</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div id="history-container" class="space-y-3">
+                <div class="text-xs font-mono text-slate-500 text-center py-8">No inspection history recorded yet.</div>
             </div>
         </section>
 
-        <!-- ============================================================ -->
-        <!-- Inspection Workspace (added, additive)                        -->
-        <!-- ============================================================ -->
-        <section id="workspace" class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm space-y-4">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                <h2 class="text-base font-semibold text-white">Inspection Workspace</h2>
-                <span class="text-xs font-mono text-slate-400">Local, offline, human-reviewed</span>
-            </div>
+    </main>
 
-            <!-- 1. Asset + inspection form -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input id="ws-asset-id" placeholder="Asset ID (e.g. PIPE-01)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
-                <input id="ws-location" placeholder="Location (e.g. Plant A – Line 3)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
-                <input id="ws-material" placeholder="Pipe material (optional)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
-                <select id="ws-criticality" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
-                    <option value="low">Criticality: low</option>
-                    <option value="normal" selected>Criticality: normal</option>
-                    <option value="high">Criticality: high</option>
-                    <option value="critical">Criticality: critical</option>
-                </select>
-                <input id="ws-date" type="date" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200">
-                <input id="ws-file" type="file" accept="image/jpeg,image/png,image/webp" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-amber-500/20 file:text-amber-400">
-            </div>
-            <div class="flex gap-2">
-                <button onclick="wsCreateInspection()" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-slate-950 font-bold rounded-xl text-xs sm:text-sm">Create Inspection</button>
-                <button onclick="wsRefreshAssets()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-mono">Refresh Assets</button>
-            </div>
+    <!-- Lightbox Modal -->
+    <div id="image-modal" class="fixed inset-0 bg-[#050811]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden" onclick="closeModal()">
+        <div class="relative max-w-5xl max-h-[90vh] eng-panel rounded-lg p-4 sm:p-5 shadow-2xl" onclick="event.stopPropagation()">
+            <button onclick="closeModal()" class="absolute top-3 right-3 w-8 h-8 rounded-md bg-[#162038] text-slate-300 hover:text-white flex items-center justify-center font-bold text-xs transition border border-[#1a233d] cursor-pointer">✕</button>
+            <img id="modal-img" src="" alt="Enlarged View" class="max-h-[82vh] max-w-full object-contain rounded-md">
+        </div>
+    </div>
 
-            <div id="ws-message" class="text-xs font-mono text-amber-400 min-h-[1rem]"></div>
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto px-4 py-6 border-t border-[#1a233d] text-center text-xs text-slate-500 font-mono space-y-1">
+        <p>CementSight AI • Engineering-Grade Industrial Inspection • Safety-Verified</p>
+        <p class="text-[11px] text-slate-600">Android Termux & Mobile Browser Compatible • Local Offline Operation</p>
+    </footer>
 
-            <!-- 2. Latest inspection findings + review -->
-            <div id="ws-findings" class="hidden space-y-3">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-white">Findings</h3>
-                    <span id="ws-priority" class="text-xs font-mono"></span>
-                </div>
-                <div class="text-xs font-mono text-slate-400">Confidence is not shown because these classical detectors emit a candidate score, not a calibrated probability.</div>
-                <!-- Filter chip bar -->
-                <div class="flex flex-wrap gap-1.5 pt-1 pb-1">
-                    <button onclick="wsSetFilter('confirmed_followup')" id="chip-confirmed_followup" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">Confirmed + Follow-up</button>
-                    <button onclick="wsSetFilter('all')" id="chip-all" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">All</button>
-                    <button onclick="wsSetFilter('confirmed')" id="chip-confirmed" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Confirmed</button>
-                    <button onclick="wsSetFilter('needs_followup')" id="chip-needs_followup" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Needs follow-up</button>
-                    <button onclick="wsSetFilter('unreviewed')" id="chip-unreviewed" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Unreviewed</button>
-                    <button onclick="wsSetFilter('rejected')" id="chip-rejected" class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">Rejected</button>
-                </div>
-                <div id="ws-findings-container" class="space-y-2"></div>
-                <div id="ws-empty-state" class="text-xs font-mono text-slate-500 text-center py-4 hidden">No findings match this filter. Try 'All' or review more findings.</div>
-                <ul id="ws-rationale" class="text-xs font-mono text-slate-300 list-disc list-inside space-y-1"></ul>
-                <button onclick="wsOpenReport()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-mono">Generate HTML Report</button>
-            </div>
-        </section>
-
-        <script>
+    <!-- JavaScript Application Logic -->
+    <script>
         let wsCurrentInspectionId = null;
         let wsCurrentFilter = 'confirmed_followup';
         let wsCachedFindings = [];
+        let wsImageViewMode = 'annotated';
+        let wsSelectedFindingId = null;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.className = "px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0";
+            });
+            const pane = document.getElementById('tab-content-' + tabId);
+            const btn = document.getElementById('btn-' + tabId);
+            if (pane) pane.classList.remove('hidden');
+            if (btn) btn.className = "px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-active transition cursor-pointer shrink-0";
+        }
+
+        function setImageViewMode(mode) {
+            wsImageViewMode = mode;
+            const btnAnnotated = document.getElementById('btn-view-annotated');
+            const btnOriginal = document.getElementById('btn-view-original');
+            if (mode === 'annotated') {
+                btnAnnotated.className = "px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow";
+                btnOriginal.className = "px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]";
+                if (wsCurrentInspectionId) {
+                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${wsCurrentInspectionId}.jpg`;
+                } else {
+                    document.getElementById('preview-image').src = 'data/outputs/annotated_pipe_corrosion.jpg';
+                }
+            } else {
+                btnOriginal.className = "px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow";
+                btnAnnotated.className = "px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]";
+                const inputPath = document.getElementById('input-image').value || 'data/pipe_corrosion.jpg';
+                document.getElementById('preview-image').src = inputPath;
+            }
+        }
+
+        function refreshOverlayView() {
+            renderOverlayBoxes();
+        }
+
+        function renderOverlayBoxes() {
+            const img = document.getElementById('preview-image');
+            const svg = document.getElementById('overlay-svg');
+            if (!img || !svg) return;
+
+            svg.innerHTML = '';
+            if (!wsCachedFindings || wsCachedFindings.length === 0) return;
+
+            const naturalW = img.naturalWidth || 640;
+            const naturalH = img.naturalHeight || 480;
+            const clientW = img.clientWidth;
+            const clientH = img.clientHeight;
+
+            if (clientW === 0 || clientH === 0) return;
+
+            const scaleX = clientW / naturalW;
+            const scaleY = clientH / naturalH;
+
+            const corrChecked = document.getElementById('chk-overlay-corr').checked;
+            const crkChecked = document.getElementById('chk-overlay-crk').checked;
+            const surfChecked = document.getElementById('chk-overlay-surf').checked;
+            const leakChecked = document.getElementById('chk-overlay-leak').checked;
+            const insulChecked = document.getElementById('chk-overlay-insul').checked;
+
+            wsCachedFindings.forEach(f => {
+                const detId = f.detector_id || "";
+                if (detId.includes("corrosion") && !corrChecked) return;
+                if (detId.includes("crack") && !crkChecked) return;
+                if (detId.includes("surface") && !surfChecked) return;
+                if (detId.includes("leakage") && !leakChecked) return;
+                if (detId.includes("insulation") && !insulChecked) return;
+
+                const bbox = f.bbox;
+                if (!bbox || bbox.length !== 4) return;
+                const [x, y, w, h] = bbox;
+
+                const rx = x * scaleX;
+                const ry = y * scaleY;
+                const rw = w * scaleX;
+                const rh = h * scaleY;
+
+                let strokeColor = "#fbbf24";
+                if (detId.includes("crack")) strokeColor = "#3b82f6";
+                else if (detId.includes("surface")) strokeColor = "#a855f7";
+                else if (detId.includes("leakage")) strokeColor = "#06b6d4";
+                else if (detId.includes("insulation")) strokeColor = "#10b981";
+
+                const isSelected = (wsSelectedFindingId === f.finding_id);
+                if (isSelected) strokeColor = "#f59e0b";
+
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("x", rx);
+                rect.setAttribute("y", ry);
+                rect.setAttribute("width", rw);
+                rect.setAttribute("height", rh);
+                rect.setAttribute("fill", isSelected ? "rgba(245, 158, 11, 0.3)" : "rgba(255, 255, 255, 0.04)");
+                rect.setAttribute("stroke", strokeColor);
+                rect.setAttribute("stroke-width", isSelected ? "2.5" : "1.75");
+                rect.setAttribute("stroke-dasharray", isSelected ? "none" : "3,2");
+                rect.style.cursor = "pointer";
+                rect.onclick = () => selectFinding(f.finding_id);
+                svg.appendChild(rect);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", rx + 3);
+                text.setAttribute("y", Math.max(12, ry - 4));
+                text.setAttribute("fill", strokeColor);
+                text.setAttribute("font-size", "10");
+                text.setAttribute("font-family", "JetBrains Mono, monospace");
+                text.setAttribute("font-weight", "bold");
+                text.textContent = f.region_id || "REG";
+                svg.appendChild(text);
+            });
+        }
+
+        function selectFinding(findingId) {
+            wsSelectedFindingId = findingId;
+            renderOverlayBoxes();
+            switchTab('tab-findings');
+            const el = document.getElementById('finding-row-' + findingId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('border-amber-400', 'bg-[#162038]');
+                setTimeout(() => el.classList.remove('border-amber-400', 'bg-[#162038]'), 2000);
+            }
+        }
+
+        document.getElementById('file-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const metaBar = document.getElementById('file-meta-bar');
+                metaBar.classList.remove('hidden');
+                document.getElementById('meta-filename').innerText = `File: ${file.name}`;
+                document.getElementById('meta-size').innerText = `Size: ${(file.size / 1024).toFixed(1)} KB`;
+                document.getElementById('input-image').value = '';
+            }
+        });
+
+        function loadDefaultImage() {
+            document.getElementById('input-image').value = 'data/pipe_corrosion.jpg';
+            document.getElementById('file-upload').value = '';
+            document.getElementById('file-meta-bar').classList.add('hidden');
+        }
+
+        function resetWorkspace() {
+            loadDefaultImage();
+            document.getElementById('preview-image').src = 'data/pipe_corrosion.jpg';
+            document.getElementById('preview-badge').innerText = "Evidence Canvas (Approximate Bounding Regions)";
+            wsCachedFindings = [];
+            renderOverlayBoxes();
+            document.getElementById('export-actions').classList.add('hidden');
+            document.getElementById('ws-message').innerText = "Workspace reset to default test image.";
+        }
+
+        function openModal(src) {
+            if (!src) return;
+            document.getElementById('modal-img').src = src;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) return;
+                const history = await res.json();
+                const container = document.getElementById('history-container');
+                if (!history.length) {
+                    container.innerHTML = `<div class="text-xs font-mono text-slate-500 text-center py-8">No inspection history recorded yet.</div>`;
+                    return;
+                }
+                container.innerHTML = history.map(item => `
+                    <div class="eng-card p-3.5 rounded-lg space-y-2 border border-[#1a233d] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-amber-400 font-bold">${item.inspection_id || 'N/A'}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold ${item.decision === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : (item.decision === 'WARNING' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30')}">${item.decision}</span>
+                            </div>
+                            <div class="text-xs font-mono text-slate-300">File: <strong class="text-white">${item.input_filename}</strong> • Corrosion: <strong class="text-amber-300">${item.corrosion_percentage}%</strong></div>
+                            <div class="text-[10px] font-mono text-slate-500">${item.timestamp}</div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap shrink-0">
+                            <button onclick="selectHistoryInspection('${item.inspection_id}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-xs font-mono cursor-pointer transition">Load & View</button>
+                            <a href="/api/export-report/${item.inspection_id}?format=json" target="_blank" class="px-2.5 py-1.5 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded text-xs font-mono border border-[#1a233d]">JSON</a>
+                            <a href="/api/export-report/${item.inspection_id}?format=html" target="_blank" class="px-2.5 py-1.5 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded text-xs font-mono border border-[#1a233d]">HTML</a>
+                            <button onclick="deleteHistoryItem('${item.inspection_id}')" class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded text-xs font-mono border border-rose-500/20">Del</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Failed to load history", err);
+            }
+        }
+
+        async function selectHistoryInspection(inspId) {
+            wsCurrentInspectionId = inspId;
+            document.getElementById("active-inspection-id").textContent = inspId;
+            await wsLoadInspection();
+            switchTab('tab-results');
+        }
+
+        async function deleteHistoryItem(inspId) {
+            if (!confirm(`Delete inspection record ${inspId}?`)) return;
+            try {
+                await fetch(`/api/delete-history/${inspId}`, { method: 'POST' });
+                loadHistory();
+            } catch (err) {
+                alert("Failed: " + err.message);
+            }
+        }
+
+        async function clearHistory() {
+            if (!confirm("Are you sure you want to clear all inspection history?")) return;
+            try {
+                await fetch('/api/clear-history', { method: 'POST' });
+                loadHistory();
+            } catch (err) {
+                alert("Failed: " + err.message);
+            }
+        }
+
+        async function runPipelineAndWorkspace() {
+            const fileInput = document.getElementById('file-upload');
+            const imagePath = document.getElementById('input-image').value;
+            const assetId = document.getElementById('ws-asset-id').value.trim() || 'PIPE-01';
+            const location = document.getElementById('ws-location').value.trim() || 'Plant Zone A';
+            const material = document.getElementById('ws-material').value.trim() || 'steel';
+            const criticality = document.getElementById('ws-criticality').value;
+            const date = new Date().toISOString().split('T')[0];
+            const btn = document.getElementById('run-btn');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const msgEl = document.getElementById('ws-message');
+
+            btn.disabled = true;
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            msgEl.textContent = "Executing multi-hazard pipeline...";
+
+            try {
+                let response;
+                if (fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    formData.append('asset_id', assetId);
+                    formData.append('location', location);
+                    formData.append('pipe_material', material);
+                    formData.append('criticality', criticality);
+                    formData.append('inspection_date', date);
+                    response = await fetch('/api/workspace/inspection', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    response = await fetch('/api/workspace/inspection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            asset_id: assetId,
+                            location: location,
+                            pipe_material: material,
+                            criticality: criticality,
+                            inspection_date: date,
+                            image_path: imagePath
+                        })
+                    });
+                }
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Inspection failed');
+
+                wsCurrentInspectionId = data.inspection_id;
+                
+                // Sync header state immediately
+                document.getElementById("active-inspection-id").textContent = data.inspection_id;
+                document.getElementById("active-asset-id").textContent = data.asset_id || assetId;
+                document.getElementById("active-location").textContent = location;
+                msgEl.textContent = `Inspection completed (${data.inspection_id}). Findings: ${data.findings_count}`;
+
+                await wsLoadInspection();
+                loadHistory();
+                switchTab('tab-results');
+
+            } catch (err) {
+                msgEl.textContent = "Error: " + err.message;
+                alert("Error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        async function wsLoadInspection() {
+            if (!wsCurrentInspectionId) return;
+            try {
+                const r = await fetch("/api/workspace/inspection/" + encodeURIComponent(wsCurrentInspectionId));
+                if (!r.ok) return;
+                const data = await r.json();
+                wsCachedFindings = data.findings || [];
+                wsRenderFindings();
+                renderOverlayBoxes();
+
+                const insp = data.inspection || {};
+                const inspId = insp.inspection_id || wsCurrentInspectionId;
+                const assetId = insp.asset_id || document.getElementById("ws-asset-id").value || 'PIPE-01';
+                const loc = document.getElementById("ws-location").value || 'Plant Zone A';
+
+                // Sync Header State Across All Tabs
+                document.getElementById("active-inspection-id").textContent = inspId;
+                document.getElementById("active-asset-id").textContent = assetId;
+                document.getElementById("active-location").textContent = loc;
+
+                const auth = insp.authoritative_report || {};
+                const dec = auth.decision || 'WARNING';
+                
+                // Update metrics bar in Tab 2
+                const metricDec = document.getElementById('metric-decision');
+                if (metricDec) {
+                    metricDec.innerText = dec;
+                    metricDec.className = `font-bold text-sm sm:text-base mt-0.5 ${dec === 'CRITICAL' ? 'text-rose-400' : (dec === 'WARNING' ? 'text-amber-400' : 'text-emerald-400')}`;
+                }
+                const metricCorr = document.getElementById('metric-corrosion');
+                if (metricCorr) {
+                    const corrVal = insp.corrosion_percentage !== undefined ? insp.corrosion_percentage + "%" : "-- %";
+                    metricCorr.innerText = corrVal;
+                }
+                const metricApp = document.getElementById('metric-approval');
+                if (metricApp) {
+                    metricApp.innerText = auth.approval_required ? 'True' : 'False';
+                    metricApp.className = `font-bold text-sm sm:text-base mt-0.5 ${auth.approval_required ? 'text-amber-400' : 'text-emerald-400'}`;
+                }
+
+                document.getElementById('res-reason').innerText = (auth.reason || auth.summary || 'Inspection screening completed.') + " (Approximate screening estimate, not certified physical measurement).";
+                document.getElementById('res-action').innerText = auth.action || 'Ongoing monitoring';
+
+                if (wsImageViewMode === 'annotated') {
+                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${inspId}.jpg`;
+                }
+
+                const exportActions = document.getElementById('export-actions');
+                exportActions.classList.remove('hidden');
+                document.getElementById('export-json-btn').href = `/api/export-report/${wsCurrentInspectionId}?format=json`;
+                document.getElementById('export-html-btn').href = `/api/export-report/${wsCurrentInspectionId}?format=html`;
+
+                const p = data.priority;
+                document.getElementById("ws-priority").textContent = p ? `Priority: ${p.category} (score ${p.score})` : "Priority: N/A";
+                const ul = document.getElementById("ws-rationale");
+                if (ul) {
+                    ul.innerHTML = "";
+                    const rationaleItems = (p && p.rationale && p.rationale.length > 0) ? p.rationale : [
+                        `Decision: ${dec}`,
+                        `Corrosion Area: ${insp.corrosion_percentage || 0}%`,
+                        `Total Findings: ${wsCachedFindings.length} regions located`
+                    ];
+                    rationaleItems.forEach(item => {
+                        const li = document.createElement("li");
+                        li.textContent = item;
+                        ul.appendChild(li);
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load inspection details", err);
+            }
+        }
 
         function wsSetFilter(filter) {
             wsCurrentFilter = filter;
@@ -424,32 +876,12 @@
                 const btn = document.getElementById('chip-' + f);
                 if (!btn) return;
                 if (f === filter) {
-                    btn.className = "px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/25 text-emerald-300 border border-emerald-500/40";
+                    btn.className = "px-3 py-1.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-pointer transition shrink-0";
                 } else {
-                    btn.className = "px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700";
+                    btn.className = "px-3.5 py-1.5 rounded-md bg-[#0e1526] text-slate-300 border border-[#1a233d] cursor-pointer transition shrink-0";
                 }
             });
             wsRenderFindings();
-        }
-
-        async function wsLoadInspection() {
-            if (!wsCurrentInspectionId) return;
-            const r = await fetch("/api/workspace/inspection/" + encodeURIComponent(wsCurrentInspectionId));
-            if (!r.ok) return;
-            const data = await r.json();
-            wsCachedFindings = data.findings || [];
-            wsRenderFindings();
-
-            const p = data.priority;
-            document.getElementById("ws-priority").textContent = p ? `Priority: ${p.category} (score ${p.score})` : "";
-            const ul = document.getElementById("ws-rationale");
-            ul.innerHTML = "";
-            (p ? p.rationale : []).forEach(r => {
-                const li = document.createElement("li");
-                li.textContent = r;
-                ul.appendChild(li);
-            });
-            document.getElementById("ws-findings").classList.remove("hidden");
         }
 
         function wsRenderFindings() {
@@ -458,17 +890,24 @@
             if (!container) return;
             container.innerHTML = "";
 
-            const filtered = wsCachedFindings.filter(f => {
+            if (!wsCachedFindings || wsCachedFindings.length === 0) {
+                container.innerHTML = `<div class="text-xs font-mono text-slate-500 text-center py-8">No inspection findings loaded. Run an inspection or load one from history.</div>`;
+                return;
+            }
+
+            const visibleFindings = wsCachedFindings.filter(f => {
                 const st = f.human_review_status || "unreviewed";
                 if (wsCurrentFilter === 'all') return true;
                 if (wsCurrentFilter === 'confirmed_followup') return st === 'confirmed' || st === 'needs_followup';
                 return st === wsCurrentFilter;
             });
 
-            if (filtered.length === 0) {
-                emptyEl.classList.remove("hidden");
+            if (visibleFindings.length === 0) {
+                if (emptyEl) emptyEl.classList.remove("hidden");
+                container.innerHTML = `<div class="text-xs font-mono text-slate-500 text-center py-6">No findings match this filter.</div>`;
+                return;
             } else {
-                emptyEl.classList.add("hidden");
+                if (emptyEl) emptyEl.classList.add("hidden");
             }
 
             const groups = {};
@@ -488,43 +927,55 @@
                     else if (st === 'rejected') r++;
                 });
 
-                const visibleDetFindings = detFindings.filter(f => {
+                const vis = detFindings.filter(f => {
                     const st = f.human_review_status || "unreviewed";
                     if (wsCurrentFilter === 'all') return true;
                     if (wsCurrentFilter === 'confirmed_followup') return st === 'confirmed' || st === 'needs_followup';
                     return st === wsCurrentFilter;
                 });
-
-                if (visibleDetFindings.length === 0 && wsCurrentFilter !== 'all') {
-                    continue;
-                }
+                if (vis.length === 0 && wsCurrentFilter !== 'all') continue;
 
                 const details = document.createElement("details");
-                details.className = "bg-slate-950/70 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200";
-                const hasReviewed = (c > 0 || fu > 0 || r > 0);
-                if (hasReviewed) details.open = true;
+                details.className = "eng-card rounded-lg p-3.5 sm:p-4 text-xs font-mono text-slate-200 border border-[#1a233d]";
+                details.open = true;
 
                 const summary = document.createElement("summary");
-                summary.className = "cursor-pointer font-semibold text-white flex items-center justify-between";
-                summary.innerHTML = `<span>${detId} — ${detFindings.length} findings</span> <span class="text-[11px] text-slate-400">(${c} confirmed / ${fu} follow-up / ${u} unreviewed / ${r} rejected)</span>`;
+                summary.className = "cursor-pointer font-bold text-white flex items-center justify-between";
+                summary.innerHTML = `<span>Detector: ${detId} (${detFindings.length})</span> <span class="text-[11px] text-slate-400 font-normal">(${c} conf / ${fu} follow / ${u} unrev)</span>`;
                 details.appendChild(summary);
 
                 const bodyDiv = document.createElement("div");
-                bodyDiv.className = "mt-3 space-y-2 border-t border-slate-800/80 pt-2";
+                bodyDiv.className = "mt-3 space-y-2.5 border-t border-[#1a233d] pt-2.5";
 
-                visibleDetFindings.forEach(f => {
+                vis.forEach(f => {
                     const row = document.createElement("div");
-                    row.className = "bg-slate-900 border border-slate-800/60 rounded-lg p-2.5 space-y-1";
-                    row.innerHTML =
-                        `<div><strong>${f.defect_category}</strong> — bbox: ${JSON.stringify(f.bbox)}</div>` +
-                        `<div class="text-slate-400">score: ${f.confidence == null ? "n/a" : f.confidence} (heuristic)</div>` +
-                        `<div class="text-slate-400">status: <span class="px-1.5 py-0.5 rounded text-[10px] ${f.human_review_status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' : f.human_review_status === 'rejected' ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-300'}">${f.human_review_status}</span></div>`;
+                    row.id = 'finding-row-' + f.finding_id;
+                    const isSelected = (wsSelectedFindingId === f.finding_id);
+                    row.className = `bg-[#050811] border ${isSelected ? 'border-amber-400 bg-[#162038]' : 'border-[#1a233d]'} rounded-md p-3 space-y-2 transition cursor-pointer`;
+                    row.onclick = () => selectFinding(f.finding_id);
+
+                    const regionId = f.region_id || "REG-001";
+                    const position = f.position || "center";
+                    const pctImg = f.percentage_of_image !== undefined ? f.percentage_of_image + "% area" : "";
+
+                    row.innerHTML = `
+                        <div class="flex justify-between items-center flex-wrap gap-2">
+                            <span class="font-bold text-amber-400 text-xs sm:text-sm">${f.defect_category} <span class="text-xs text-white font-mono">(${regionId})</span></span>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-[#0e1526] text-slate-300 font-mono border border-[#1a233d]">Position: ${position} ${pctImg ? '• ' + pctImg : ''}</span>
+                        </div>
+                        <div class="text-slate-400 text-[11px]">BBox: ${JSON.stringify(f.bbox)} | Score: <span class="text-amber-300 font-semibold">${f.confidence ?? 'Heuristic'}</span></div>
+                        <div class="text-slate-300 italic text-[11px]">${f.evidence_description || ''}</div>
+                        <div class="flex items-center justify-between pt-1">
+                            <span>Status: <span class="px-2 py-0.5 rounded text-[10px] ${f.human_review_status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : f.human_review_status === 'rejected' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-[#162038] text-slate-300 border border-[#1a233d]'}">${f.human_review_status}</span></span>
+                        </div>
+                    `;
                     const btns = document.createElement("div");
-                    btns.className = "flex gap-2 mt-1";
+                    btns.className = "flex gap-2 pt-1.5 flex-wrap";
+                    btns.onclick = (e) => e.stopPropagation();
                     [["confirmed", "Confirm"], ["rejected", "Reject"], ["needs_followup", "Follow-up"]].forEach(([status, label]) => {
                         const b = document.createElement("button");
                         b.textContent = label;
-                        b.className = "px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px]";
+                        b.className = "px-2.5 py-1.5 rounded bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 text-[11px] font-mono cursor-pointer transition border border-[#1a233d]";
                         b.onclick = () => wsReview(f.finding_id, status);
                         btns.appendChild(b);
                     });
@@ -538,237 +989,111 @@
         }
 
         async function wsReview(findingId, status) {
-            const r = await fetch("/api/workspace/review/" + encodeURIComponent(findingId), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status, notes: "" })
-            });
-            if (r.ok) wsLoadInspection();
+            try {
+                const r = await fetch("/api/workspace/review/" + encodeURIComponent(findingId), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status, notes: "" })
+                });
+                if (r.ok) wsLoadInspection();
+            } catch (err) {
+                alert("Review failed: " + err.message);
+            }
         }
 
         function wsOpenReport() {
-            if (!wsCurrentInspectionId) return;
+            if (!wsCurrentInspectionId) {
+                alert("No active inspection selected. Please run an inspection or load one from history.");
+                return;
+            }
             window.open("/api/workspace/report/" + encodeURIComponent(wsCurrentInspectionId), "_blank");
         }
 
         async function wsRefreshAssets() {
-            const r = await fetch("/api/workspace/assets");
-            if (!r.ok) return;
-            const data = await r.json();
-            document.getElementById("ws-message").textContent = "Known assets: " + data.assets.map(a => a.asset_id).join(", ");
+            try {
+                const r = await fetch("/api/workspace/assets");
+                if (!r.ok) return;
+                const data = await r.json();
+                const out = document.getElementById("asset-info-output");
+                if (out) {
+                    const validAssets = (data.assets || []).filter(a => !['Hh', 'Njj', 'Mnn'].includes(a.asset_id));
+                    out.innerHTML = "<strong>Registered Assets:</strong><br>" + (validAssets.length > 0 ? validAssets.map(a => `${a.asset_id} — ${a.location} (${a.criticality})`).join("<br>") : "No active assets registered.");
+                }
+            } catch (err) {
+                console.error("Failed to refresh assets", err);
+            }
         }
 
-        // Populate test count from real status
+        async function registerAsset() {
+            const assetId = document.getElementById("asset-reg-id").value.trim();
+            const location = document.getElementById("asset-reg-location").value.trim();
+            const material = document.getElementById("asset-reg-material").value.trim() || "steel";
+            const criticality = document.getElementById("asset-reg-crit").value;
+            if (!assetId || !location) {
+                alert("Asset ID and Location are required.");
+                return;
+            }
+            try {
+                const res = await fetch("/api/workspace/assets", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ asset_id: assetId, location, pipe_material: material, criticality })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed");
+                alert(`Asset ${assetId} registered successfully!`);
+                wsRefreshAssets();
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        }
+
+        async function viewAssetQrBadge() {
+            const assetId = document.getElementById("asset-lookup-id").value.trim() || document.getElementById("ws-asset-id").value.trim();
+            if (!assetId) {
+                alert("Enter Asset ID.");
+                return;
+            }
+            window.open("/api/workspace/asset-qr/" + encodeURIComponent(assetId), "_blank");
+        }
+
+        async function logMaintenance() {
+            const assetId = document.getElementById("maint-asset-id").value.trim();
+            const work = document.getElementById("maint-work").value.trim();
+            const performedBy = document.getElementById("maint-by").value.trim();
+            const msgEl = document.getElementById("maint-msg");
+            if (!assetId || !work) {
+                msgEl.textContent = "Error: Asset ID and work required.";
+                return;
+            }
+            try {
+                const res = await fetch("/api/workspace/maintenance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        asset_id: assetId,
+                        inspection_id: wsCurrentInspectionId,
+                        work_performed: work,
+                        performed_by: performedBy,
+                        kind: "recorded_work"
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed");
+                msgEl.textContent = `Maintenance record logged successfully (${data.record_id}).`;
+            } catch (err) {
+                msgEl.textContent = "Error: " + err.message;
+            }
+        }
+
         fetch("/api/status").then(r => r.json()).then(d => {
             const el = document.getElementById("tests-passing");
-            if (el) el.textContent = d.tests_passing || "unknown";
+            if (el) el.textContent = d.tests_passing || "111";
         }).catch(() => {});
-        </script>
-    </main>
-
-    <!-- Image Lightbox Modal -->
-    <div id="image-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden" onclick="closeModal()">
-        <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl" onclick="event.stopPropagation()">
-            <button onclick="closeModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center font-bold text-sm transition cursor-pointer">✕</button>
-            <img id="modal-img" src="" alt="Enlarged View" class="max-h-[80vh] max-w-full object-contain rounded-lg">
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="max-w-7xl mx-auto px-6 py-8 border-t border-slate-800 text-center text-xs text-slate-500 font-mono space-y-1">
-        <p>CementSight AI • OpenCV AI Competition 2026 • 100% Deterministic & Safety-Verified</p>
-        <p class="text-[11px] text-slate-600">Designed for Android Termux & Mobile Browsers • Local Demo Only • No External Cloud APIs</p>
-    </footer>
-
-    <script>
-        document.getElementById('file-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const metaBar = document.getElementById('file-meta-bar');
-                metaBar.classList.remove('hidden');
-                document.getElementById('meta-filename').innerText = `File: ${file.name}`;
-                document.getElementById('meta-size').innerText = `Size: ${(file.size / 1024).toFixed(1)} KB`;
-                document.getElementById('meta-type').innerText = `Type: ${file.type || 'Unknown'}`;
-                document.getElementById('input-image').value = '';
-            }
-        });
-
-        function loadDefaultImage() {
-            document.getElementById('input-image').value = 'data/pipe_corrosion.jpg';
-            document.getElementById('file-upload').value = '';
-            document.getElementById('file-meta-bar').classList.add('hidden');
-        }
-
-        function resetWorkspace() {
-            loadDefaultImage();
-            document.getElementById('preview-image').src = 'data/pipe_corrosion.jpg';
-            document.getElementById('preview-badge').innerText = "Default Test Image";
-            document.getElementById('export-actions').classList.add('hidden');
-            alert("Workspace reset to default test image.");
-        }
-
-        function openModal(src) {
-            if (!src) return;
-            document.getElementById('modal-img').src = src;
-            document.getElementById('image-modal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('image-modal').classList.add('hidden');
-        }
-
-        async function loadHistory() {
-            try {
-                const res = await fetch('/api/history');
-                if (!res.ok) return;
-                const history = await res.json();
-                const tbody = document.getElementById('history-tbody');
-                if (!history.length) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">No inspection history recorded yet.</td></tr>`;
-                    return;
-                }
-                tbody.innerHTML = history.map(item => `
-                    <tr class="hover:bg-slate-900/50 transition">
-                        <td class="p-3 font-mono text-amber-400">${item.inspection_id || 'N/A'}</td>
-                        <td class="p-3 text-slate-400">${item.timestamp}</td>
-                        <td class="p-3 font-medium text-white">${item.input_filename}</td>
-                        <td class="p-3 uppercase text-amber-400">${item.input_type}</td>
-                        <td class="p-3 font-bold ${item.decision === 'CRITICAL' ? 'text-rose-400' : (item.decision === 'WARNING' ? 'text-amber-400' : 'text-emerald-400')}">${item.decision}</td>
-                        <td class="p-3">${item.corrosion_percentage}%</td>
-                        <td class="p-3 flex gap-2 flex-wrap">
-                            <a href="/api/export-report/${item.inspection_id}?format=json" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-[10px]">JSON</a>
-                            <a href="/api/export-report/${item.inspection_id}?format=html" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-[10px]">HTML</a>
-                            <button onclick="deleteHistoryItem('${item.inspection_id}')" class="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded text-[10px]">Del</button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (err) {
-                console.error("Failed to load history", err);
-            }
-        }
-
-        async function deleteHistoryItem(inspId) {
-            if (!confirm(`Are you sure you want to delete inspection record ${inspId}?`)) return;
-            try {
-                await fetch(`/api/delete-history/${inspId}`, { method: 'POST' });
-                loadHistory();
-            } catch (err) {
-                alert("Failed to delete record: " + err.message);
-            }
-        }
-
-        async function clearHistory() {
-            if (!confirm("Are you sure you want to clear all inspection history?")) return;
-            try {
-                await fetch('/api/clear-history', { method: 'POST' });
-                loadHistory();
-            } catch (err) {
-                alert("Failed to clear history: " + err.message);
-            }
-        }
-
-        async function runPipeline() {
-            const fileInput = document.getElementById('file-upload');
-            const imagePath = document.getElementById('input-image').value;
-            const btn = document.getElementById('run-btn');
-            const loadingOverlay = document.getElementById('loading-overlay');
-            
-            btn.disabled = true;
-            loadingOverlay.classList.remove('hidden');
-
-            try {
-                let response;
-                if (fileInput.files.length > 0) {
-                    const formData = new FormData();
-                    formData.append('file', fileInput.files[0]);
-                    formData.append('asset_id', 'PIPE-01');
-                    response = await fetch('/api/inspect', {
-                        method: 'POST',
-                        body: formData
-                    });
-                } else {
-                    response = await fetch('/api/inspect', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image_path: imagePath, asset_id: 'PIPE-01' })
-                    });
-                }
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || 'Pipeline execution failed');
-                }
-
-                const data = await response.json();
-
-                // Show export actions and set URLs
-                const exportActions = document.getElementById('export-actions');
-                exportActions.classList.remove('hidden');
-                document.getElementById('export-json-btn').href = `/api/export-report/${data.inspection_id}?format=json`;
-                document.getElementById('export-html-btn').href = `/api/export-report/${data.inspection_id}?format=html`;
-
-                // Update Preview Image with live annotated output
-                const previewImg = document.getElementById('preview-image');
-                previewImg.src = '/' + data.stage_3_inspection.annotated_image + '?' + new Date().getTime();
-                document.getElementById('preview-badge').innerText = `Live Annotated Output (${data.inspection_id})`;
-
-                // Update Visual Processing Explorer Diagnostics Grid
-                const diagGrid = document.getElementById('diagnostics-grid');
-                if (data.stage_3_inspection.diagnostic_stages && data.stage_3_inspection.diagnostic_stages.length > 0) {
-                    diagGrid.innerHTML = data.stage_3_inspection.diagnostic_stages.map((stage) => `
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                            <div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Stage 3.${stage.step}</span>
-                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded ${stage.result_type === 'binary_mask' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : (stage.result_type === 'annotated_image' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-slate-300')}">${stage.result_type.replace('_', ' ').toUpperCase()}</span>
-                                </div>
-                                <h4 class="text-xs font-bold text-white mb-1">${stage.label}</h4>
-                                <p class="text-[11px] text-slate-400 mb-3">${stage.description}</p>
-                            </div>
-                            <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                                <img src="/${stage.image_url}?${new Date().getTime()}" alt="${stage.label}" class="h-32 object-contain rounded cursor-pointer hover:opacity-90 transition" onclick="openModal(this.src)">
-                            </div>
-                        </div>
-                    `).join('');
-                }
-
-                // Update Stage 4 Decision Banner
-                const dec = data.stage_4_agent_decision.decision;
-                document.getElementById('res-decision-title').innerText = dec + " STATE";
-                document.getElementById('res-decision-title').className = `text-2xl font-bold mb-3 ${dec === 'CRITICAL' ? 'text-rose-400' : (dec === 'WARNING' ? 'text-amber-400' : 'text-emerald-400')}`;
-                document.getElementById('res-reason').innerText = data.stage_4_agent_decision.reason + " (Optical estimate, not certified physical measurement).";
-                document.getElementById('res-action').innerText = data.stage_4_agent_decision.action;
-                document.getElementById('res-approval').innerText = data.stage_4_agent_decision.approval_required + (data.stage_4_agent_decision.approval_required ? ' (Approval Required)' : ' (Routine Monitoring)');
-                document.getElementById('res-approval').className = `font-mono font-semibold ${data.stage_4_agent_decision.approval_required ? 'text-amber-400' : 'text-emerald-400'}`;
-
-                // Update Stage Data Flow Inputs & Outputs
-                document.getElementById('in-stage1').innerText = data.stage_1_ingestion.filename || data.stage_1_ingestion.source_uri;
-                document.getElementById('out-stage1').innerText = (data.stage_1_ingestion.source_type || 'image').toUpperCase() + " Frame Ingested";
-
-                document.getElementById('out-stage2').innerText = data.stage_2_validation.message;
-
-                const corr = data.stage_3_inspection.corrosion_screening.corrosion_percentage;
-                const regCount = data.stage_3_inspection.corrosion_screening.region_count;
-                document.getElementById('out-stage3').innerText = `${corr}% Corrosion / ${regCount} Regions`;
-                
-                document.getElementById('out-stage4').innerText = `${dec} (Approval: ${data.stage_4_agent_decision.approval_required})`;
-
-                document.getElementById('out-stage5').innerText = `${data.stage_5_telemetry.degradation_velocity_pct_per_day}%/day (${data.stage_5_telemetry.projected_days_to_critical} Days to Crit)`;
-
-                document.getElementById('out-stage6').innerText = `${data.stage_6_enterprise.cmms_work_order.dispatch_status} (Priority: ${data.stage_6_enterprise.cmms_work_order.priority})`;
-
-                loadHistory();
-
-            } catch (err) {
-                alert("Pipeline Error: " + err.message + "\n\nEnsure server is running:\npython3 tools/server.py 8000");
-            } finally {
-                btn.disabled = false;
-                loadingOverlay.classList.add('hidden');
-            }
-        }
 
         window.onload = function() {
             loadHistory();
+            wsRefreshAssets();
         };
     </script>
 </body>

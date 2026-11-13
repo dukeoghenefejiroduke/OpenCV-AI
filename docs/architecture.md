@@ -6,7 +6,7 @@ CementSight is an industrial visual inspection system designed to analyze imager
 
 ## 1. Architecture Overview
 
-CementSight adopts a modular, deterministic, and security-first architecture. By decoupling the classical computer vision inspection engine from the agentic decision layer and the application deployment boundary, the system ensures complete reproducibility, zero LLM hallucination risks, and robust local-to-cloud portability.
+CementSight adopts a modular, deterministic, and security-first architecture. By decoupling the classical computer vision inspection engine from the agentic decision layer and the application deployment boundary, the system ensures complete reproducibility, rule-based decisions (no LLM in the safety path), and robust local-to-cloud portability.
 
 ```
 [User / Client] 

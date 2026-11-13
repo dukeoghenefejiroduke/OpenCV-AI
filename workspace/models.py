@@ -4,7 +4,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
 
-HUMAN_REVIEW_STATUSES = ("unreviewed", "confirmed", "rejected", "needs_followup")
+HUMAN_REVIEW_STATUSES = ("unreviewed", "confirmed", "rejected", "needs_followup", "pending_review", "retake_requested")
 
 
 @dataclass

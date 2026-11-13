@@ -14,7 +14,8 @@ from vision.contract import (
     STATUS_NO_CANDIDATE,
     STATUS_CANDIDATE_DETECTED,
     STATUS_DETECTOR_FAILED,
-    STATUS_INPUT_REJECTED
+    STATUS_INPUT_REJECTED,
+    get_region_position_and_percentage
 )
 from vision.inspection import inspect_corrosion
 from app.validation import validate_image_input
@@ -59,11 +60,13 @@ class CorrosionDetector(BaseDetector):
 
         try:
             output_annotated_path = kwargs.get("output_annotated_path", None)
+            output_roi_path = kwargs.get("output_roi_path", None)
             use_roi = kwargs.get("use_roi", True)
 
             inspection_report = inspect_corrosion(
                 decoded_img,
                 output_annotated_path=output_annotated_path,
+                output_roi_path=output_roi_path,
                 use_roi=use_roi
             )
 
@@ -72,24 +75,29 @@ class CorrosionDetector(BaseDetector):
             recommendation = inspection_report.get("recommendation", "PASS")
             total_pixels = inspection_report.get("total_pixels", 1)
 
+            height, width = decoded_img.shape[:2]
             findings = []
             for idx, bbox in enumerate(bounding_boxes):
                 x, y, w, h = bbox
                 area = w * h
+                position, pct_img = get_region_position_and_percentage([int(x), int(y), int(w), int(h)], (height, width), area)
                 pct = (area / total_pixels) * 100.0 if total_pixels > 0 else 0.0
 
                 finding = {
                     "finding_id": f"corr_{uuid.uuid4().hex[:8]}",
+                    "region_id": f"COR-{idx+1:03d}",
                     "detector_id": self.detector_id,
                     "detector_version": self.version,
                     "defect_category": self.defect_category,
                     "bbox": [int(x), int(y), int(w), int(h)],
+                    "position": position,
+                    "percentage_of_image": pct_img,
                     "pixel_measurement": {
                         "bounding_box_area_pixels": int(area),
                         "estimated_percentage": round(pct, 3),
                         "total_corrosion_percentage": corrosion_pct
                     },
-                    "evidence_description": f"Corrosion bounding box {idx+1}: [{x}, {y}, {w}, {h}], approx area {area} pixels.",
+                    "evidence_description": f"Corrosion region {idx+1} ({position}): [{x}, {y}, {w}, {h}], approx area {area} pixels ({pct_img}% of image).",
                     "confidence": None,  # Classical computer vision screening estimate, not a ML probability score
                     "review_status": "PENDING_REVIEW",
                     "limitations": [

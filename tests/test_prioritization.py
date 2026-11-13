@@ -37,8 +37,13 @@ def test_unreviewed_does_not_reach_urgent():
     assert s.category in ("routine_review", "follow_up")
 
 
-def test_confirmed_crack_plus_critical_asset_reaches_urgent():
-    s = score(_asset("critical"), _insp(corr=12.0), [_f("crack", "confirmed")], history=[])
+def test_confirmed_leakage_plus_critical_asset_reaches_urgent():
+    s = score(_asset("critical"), _insp(corr=12.0), [_f("leakage", "confirmed")], history=[])
+    assert s.category == "urgent_human_assessment"
+
+
+def test_confirmed_crack_with_flag_reaches_urgent():
+    s = score(_asset("critical"), _insp(corr=12.0), [_f("crack", "confirmed")], history=[], crack_enabled_for_priority=True)
     assert s.category == "urgent_human_assessment"
 
 
@@ -72,8 +77,8 @@ def test_rejected_findings_never_raise_priority_across_categories():
 def test_repeated_confirmations_on_same_category_accumulate():
     a = _asset("high")
     insp = _insp(corr=3.0)
-    s1 = score(a, insp, [_f("crack", "confirmed")], history=[])
-    s2 = score(a, insp, [_f("crack", "confirmed"), Finding(finding_id="F-crack-confirmed-2", inspection_id="INS-1", detector_id="d", defect_category="crack", bbox=None, confidence=0.5, evidence_description="", limitations=[], human_review_status="confirmed")], history=[])
+    s1 = score(a, insp, [_f("leakage", "confirmed")], history=[])
+    s2 = score(a, insp, [_f("leakage", "confirmed"), Finding(finding_id="F-leakage-confirmed-2", inspection_id="INS-1", detector_id="d", defect_category="leakage", bbox=None, confidence=0.5, evidence_description="", limitations=[], human_review_status="confirmed")], history=[])
     assert s2.score > s1.score
 
 

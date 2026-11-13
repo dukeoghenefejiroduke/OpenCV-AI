@@ -13,7 +13,7 @@ def calculate_degradation_velocity(history: List[Tuple[float, float]]) -> float:
     """Calculates corrosion increase rate (% per day) from historical data points (timestamp_days, corrosion_pct).
 
     Enforces strict data sufficiency and validity checks:
-    - Requires at least 2 valid observations.
+    - Requires at least 3 valid observations.
     - Filters out non-finite, negative, or duplicate timestamps.
     - Requires positive time span (dt > 0).
 
@@ -23,7 +23,7 @@ def calculate_degradation_velocity(history: List[Tuple[float, float]]) -> float:
     Returns:
         Corrosion growth rate percentage per day. Returns 0.0 if insufficient or invalid data.
     """
-    if not isinstance(history, list) or len(history) < 2:
+    if not isinstance(history, list) or len(history) < 3:
         return 0.0
 
     valid_points = []
@@ -47,7 +47,7 @@ def calculate_degradation_velocity(history: List[Tuple[float, float]]) -> float:
         seen_times.add(ft)
         valid_points.append((ft, fc))
 
-    if len(valid_points) < 2:
+    if len(valid_points) < 3:
         return 0.0
 
     # Sort by time

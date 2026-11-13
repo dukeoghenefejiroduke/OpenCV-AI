@@ -237,9 +237,17 @@ class WorkspaceStore:
         ).fetchall()
         return [_finding_from_row(r) for r in rows]
 
-    def review_finding(self, finding_id: str, status: str, notes: str = "") -> None:
+    def review_finding(self, finding_id: str, status: str, notes: str = "", reviewer_name: str = "") -> None:
+        if not reviewer_name or not reviewer_name.strip():
+            raise ValueError("Reviewer name is required for all state changes.")
+        status = status.lower()
         if status not in HUMAN_REVIEW_STATUSES:
             raise ValueError(f"invalid review status: {status}")
+        row = self._conn.execute("SELECT human_review_status FROM findings WHERE finding_id=?", (finding_id,)).fetchone()
+        if not row:
+            raise ValueError(f"finding not found: {finding_id}")
+        prev_status = row["human_review_status"]
+
         cur = self._conn.execute(
             "UPDATE findings SET human_review_status=?, review_notes=?, reviewed_at=? WHERE finding_id=?",
             (status, notes, _now_iso(), finding_id),
@@ -247,6 +255,19 @@ class WorkspaceStore:
         if cur.rowcount == 0:
             raise ValueError(f"finding not found: {finding_id}")
         self._conn.commit()
+
+        audit_record = {
+            "finding_id": finding_id,
+            "previous_state": prev_status,
+            "new_state": status,
+            "reviewer_name": reviewer_name.strip(),
+            "reviewed_at": _now_iso(),
+            "notes": notes,
+        }
+        audit_path = os.path.join(self.root, "review_audit.jsonl")
+        os.makedirs(self.root, exist_ok=True)
+        with open(audit_path, "a", encoding="utf-8") as f:
+            f.write(_dumps(audit_record) + "\n")
 
     # ---- maintenance records ----
     def add_maintenance_record(self, rec: MaintenanceRecord) -> None:

@@ -81,6 +81,35 @@ def validate_finding(finding: Dict[str, Any], image_shape: Optional[Tuple[int, i
     return True, ""
 
 
+def get_region_position_and_percentage(bbox: List[int], image_shape: Tuple[int, int], area: float) -> Tuple[str, float]:
+    """Computes qualitative position description and percentage of image area for a bounding box / region."""
+    if not image_shape or len(image_shape) < 2:
+        return "unknown", 0.0
+    height, width = image_shape[0], image_shape[1]
+    x, y, w, h = bbox
+    cx = x + w / 2.0
+    cy = y + h / 2.0
+
+    if cy < height / 3.0:
+        vert = "upper"
+    elif cy > 2.0 * height / 3.0:
+        vert = "lower"
+    else:
+        vert = "middle"
+
+    if cx < width / 3.0:
+        horiz = "left"
+    elif cx > 2.0 * width / 3.0:
+        horiz = "right"
+    else:
+        horiz = "center"
+
+    position = f"{vert}-{horiz}"
+    total_pixels = height * width
+    pct = (area / total_pixels) * 100.0 if total_pixels > 0 else 0.0
+    return position, round(pct, 4)
+
+
 class BaseDetector:
     """Base abstract class / protocol for modular hazard detectors."""
 

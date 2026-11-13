@@ -121,7 +121,14 @@ Evaluated against the real industrial test image (`data/pipe_corrosion.jpg`):
 | **Proposed action** | Routine maintenance inspection and ongoing monitoring |
 | **Approval required** | `No` |
 
-**Test Suite Summary:** `82/82` tests passed successfully across all inspection, agent, multi-hazard, robustness, and validation suites.
+**Test Suite Summary:** `118/118` tests passed successfully across all inspection, agent, multi-hazard, quality gate, robustness, and validation suites.
+
+---
+
+## Vision Pipeline & Quality Gate
+
+CementSight includes an **Image Quality Gate** (`vision/quality_gate.py`) running prior to analysis to assess blur (Laplacian variance), exposure, glare, and contrast. If low quality is detected, detectors still execute but findings are tagged with low confidence and a retake recommendation without silent suppression.
+Modular experimental screening detectors (cracks with CLAHE and straight-seam suppression, surface defects / blistering / spalling, leakage, insulation, and optional unvalidated material buildup) feature illumination normalization, rejection auditing, and strict experimental disclaimers.
 
 ---
 
@@ -240,13 +247,13 @@ cementsight-ai/
 
 ---
 
-## Limitations
+## Validation Status & Known Limitations
 
+- **Crack Detection:** Evaluated on the TUBERS exploratory water-pipe dataset. Results show no demonstrated signal (ROC-AUC 0.3685, 95% CI 0.25–0.53). Crack findings are strictly categorized as "candidate - human review required" and do not contribute to priority or severity scoring by default (`crack_enabled_for_priority=False`).
+- **Corrosion Screening:** Primary product focus, evaluated with strict dataset manifests, SHA-256 integrity checks, and sensitivity/specificity metrics with Wilson score confidence intervals.
 - **Scene Sensitivity:** Classical computer vision algorithms are sensitive to extreme lighting variations, reflections, and complex background clutter.
-- **Geometric Filtering:** Synthetic rectangular corrosion patches can be filtered out by classical structural ROI extent criteria.
 - **Screening Estimate:** Corrosion percentages represent computer-vision screening estimates rather than certified physical metallurgical measurements.
-- **Human-in-the-Loop:** CRITICAL operational findings strictly require human supervisor review and approval.
-- **AWS Status:** Live cloud deployment is pending account activation; runtime artifacts are configured in CI; local build passes; live deployment pending.
+- **Human-in-the-Loop:** CRITICAL operational findings strictly require human supervisor review and approval, authenticated with reviewer names and immutable append-only audit trails.
 
 ---
 

@@ -14,3 +14,4 @@ data/audit/
 data/status/
 data/workspace/
 data/uploads/
+node_modules/

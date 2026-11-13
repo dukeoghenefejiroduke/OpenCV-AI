@@ -160,7 +160,7 @@ def generate_architecture_diagrams():
   <text x="685" y="990" class="text">Cloud Target (Pending Activation)</text>
 
   <text x="650" y="1035" class="text-bold">Key Engineering Guarantees:</text>
-  <text x="650" y="1055" class="small-text">• Zero LLM dependency or hallucination risk (100% deterministic rules)</text>
+  <text x="650" y="1055" class="small-text">• Rule-based decisions; no LLM in the safety path</text>
   <text x="650" y="1075" class="small-text">• Frozen OpenCV vision pipeline (vision/inspection.py untouched)</text>
   <text x="650" y="1095" class="small-text">• 34/34 automated tests passing across inspection, agent, &amp; validation</text>
   <text x="650" y="1115" class="small-text">• Reproducible evaluation harness with machine-readable JSON reports</text>

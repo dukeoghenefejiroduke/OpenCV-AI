@@ -14,4 +14,4 @@
 - **Internal Archive Layout:** Nested under `Robot Inspection Visual Data/` root directory containing `train/`, `val/`, and `test/` partitions split into `crack/` and `no-crack/` subdirectories.
 - **Prefixes Spanning Multiple Partitions:** 16 capture-session prefixes appear across multiple dataset partitions (train/val/test).
 - **Cross-Partition Near-Duplicates:** 23,981 cross-partition pairs detected at Hamming distance $\le 4$ using 64-bit dHash.
-- **Evaluation Eligibility:** **DISABLED**. Because sequential video frames and capture-session near-duplicates leak across train, validation, and test partitions, the dataset is not demonstrably independent. Consequently, benchmark accuracy, precision, recall, and F1 metrics derived from this split are structurally invalidated for real-world generalization claims.
+- **Evaluation Eligibility:** **DISABLED**. The official partitions are not independent, so they are not used for benchmark claims. Any detector results on TUBERS are exploratory, reported per capture group, and not evidence of field performance.

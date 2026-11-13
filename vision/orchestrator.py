@@ -1,25 +1,28 @@
 """Multi-Hazard Detector Orchestrator for CementSight AI (vision/orchestrator.py).
 
-Coordinates execution across multiple independent hazard detectors (corrosion, cracks, etc.),
-aggregating results into a unified platform inspection response while maintaining strict separation
-between production corrosion rules and experimental screening modules.
+Coordinates execution across multiple independent hazard detectors (corrosion, cracks, surface defects,
+leakage, insulation, and experimental material buildup), running an image quality gate first and aggregating
+results into a unified platform inspection report while maintaining strict fault isolation.
 """
 
 from typing import Dict, Any, List, Optional
 import numpy as np
 
 from vision.contract import BaseDetector, validate_finding, STATUS_DETECTOR_FAILED
+from vision.quality_gate import ImageQualityGate
 from vision.corrosion_detector import CorrosionDetector
 from vision.crack_detector import CrackDetector
 from vision.surface_defect_detector import SurfaceDefectDetector
 from vision.leakage_detector import LeakageDetector
 from vision.insulation_detector import InsulationDetector
+from vision.material_buildup_detector import MaterialBuildupDetector
 
 
 class MultiHazardOrchestrator:
-    """Orchestrates multiple modular vision detectors with strict fault isolation."""
+    """Orchestrates multiple modular vision detectors with pre-inspection quality gating and fault isolation."""
 
-    def __init__(self):
+    def __init__(self, enable_experimental_buildup: bool = False):
+        self.quality_gate = ImageQualityGate()
         self.detectors: List[BaseDetector] = [
             CorrosionDetector(),
             CrackDetector(),
@@ -27,21 +30,34 @@ class MultiHazardOrchestrator:
             LeakageDetector(),
             InsulationDetector()
         ]
+        if enable_experimental_buildup:
+            self.detectors.append(MaterialBuildupDetector())
 
     def register_detector(self, detector: BaseDetector):
         """Registers a new modular detector at runtime."""
         self.detectors.append(detector)
 
     def run_inspections(self, image: np.ndarray, **kwargs) -> Dict[str, Any]:
-        """Runs all registered detectors on the input image with fault isolation.
+        """Runs image quality assessment, then all registered detectors with fault isolation.
 
         Args:
             image: BGR numpy array or image path.
             **kwargs: Extra parameters passed to detectors.
 
         Returns:
-            Aggregated multi-hazard inspection report.
+            Aggregated multi-hazard inspection report with quality gate status.
         """
+        # Run image quality gate first
+        # Handle path vs numpy array for quality gate
+        if isinstance(image, str):
+            import cv2
+            decoded_img = cv2.imread(image)
+        else:
+            decoded_img = image
+
+        quality_res = self.quality_gate.evaluate(decoded_img if decoded_img is not None else np.zeros((100, 100, 3), dtype=np.uint8))
+        is_low_quality = (quality_res.get("verdict") == "LOW_QUALITY")
+
         results = {}
         all_findings = []
         detector_summaries = []
@@ -65,15 +81,22 @@ class MultiHazardOrchestrator:
                     "metadata": {}
                 }
 
+            # If image quality is LOW_QUALITY, adjust/cap confidence and tag findings
+            findings = res.get("findings", [])
+            if is_low_quality:
+                for f in findings:
+                    f["confidence"] = 0.2  # low confidence due to poor image quality
+                    if "limitations" in f and isinstance(f["limitations"], list):
+                        f["limitations"].append("Warning: Image quality gate flagged low quality (retake image recommended). Findings have low confidence.")
+
             # Validate findings in result
             valid_findings = []
-            img_shape = image.shape[:2] if isinstance(image, np.ndarray) else None
-            for f in res.get("findings", []):
+            img_shape = decoded_img.shape[:2] if decoded_img is not None else None
+            for f in findings:
                 is_valid, err = validate_finding(f, image_shape=img_shape)
                 if is_valid:
                     valid_findings.append(f)
                 else:
-                    # Invalid or malformed findings are filtered out for safety
                     pass
             res["findings"] = valid_findings
             results[detector.detector_id] = res
@@ -97,7 +120,8 @@ class MultiHazardOrchestrator:
 
         return {
             "platform_name": "CementSight AI Multi-Hazard Inspection Platform",
-            "platform_version": "2.0.0",
+            "platform_version": "2.1.0",
+            "image_quality": quality_res,
             "detectors": results,
             "detector_summaries": detector_summaries,
             "total_findings_count": len(all_findings),

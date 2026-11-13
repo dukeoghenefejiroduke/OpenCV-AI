@@ -100,7 +100,7 @@ def test_end_to_end_inspection_maintenance_lifecycle(tmp_path):
         store.add_findings([finding])
 
         # Step 7: Confirm finding through human review
-        store.review_finding(finding_id, status="confirmed", notes="Inspector confirmed heavy scaling and pitting.")
+        store.review_finding(finding_id, status="confirmed", notes="Inspector confirmed heavy scaling and pitting.", reviewer_name="Inspector M. Bello")
         reviewed_finding = store.list_findings(insp_id_init)[0]
         assert reviewed_finding.human_review_status == "confirmed"
 
