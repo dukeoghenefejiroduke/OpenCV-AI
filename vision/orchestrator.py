@@ -91,14 +91,19 @@ class MultiHazardOrchestrator:
 
             # Validate findings in result
             valid_findings = []
+            contract_rejection_count = 0
+            rejected_findings_summary = []
             img_shape = decoded_img.shape[:2] if decoded_img is not None else None
             for f in findings:
                 is_valid, err = validate_finding(f, image_shape=img_shape)
                 if is_valid:
                     valid_findings.append(f)
                 else:
-                    pass
+                    contract_rejection_count += 1
+                    rejected_findings_summary.append({"finding": f, "error": err})
             res["findings"] = valid_findings
+            res["contract_rejection_count"] = contract_rejection_count
+            res["rejected_findings_summary"] = rejected_findings_summary
             results[detector.detector_id] = res
 
             detector_summaries.append({
@@ -108,6 +113,7 @@ class MultiHazardOrchestrator:
                 "defect_category": detector.defect_category,
                 "execution_status": res.get("execution_status"),
                 "findings_count": len(valid_findings),
+                "contract_rejection_count": contract_rejection_count,
                 "errors": res.get("errors", []),
                 "limitations": res.get("limitations", [])
             })

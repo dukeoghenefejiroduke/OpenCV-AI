@@ -88,6 +88,15 @@ class TestDashboardServer(unittest.TestCase):
             urllib.request.urlopen(url)
         self.assertIn(ctx.exception.code, [403, 404])
 
+    def test_7_api_inspect_absolute_path_rejected(self):
+        url = f"http://127.0.0.1:{self.port}/api/inspect"
+        abs_path = os.path.abspath("data/pipe_corrosion.jpg")
+        payload = json.dumps({"image_path": abs_path, "asset_id": "PIPE-01"}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req)
+        self.assertEqual(ctx.exception.code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

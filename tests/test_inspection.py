@@ -120,6 +120,17 @@ def test_lambda_handler_adapter():
     print("test_lambda_handler_adapter PASSED")
 
 
+def test_orchestrator_contract_rejection_tracking():
+    from vision.orchestrator import MultiHazardOrchestrator
+    orchestrator = MultiHazardOrchestrator()
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    report = orchestrator.run_inspections(img)
+    assert "detector_summaries" in report
+    for ds in report["detector_summaries"]:
+        assert "contract_rejection_count" in ds
+    print("test_orchestrator_contract_rejection_tracking PASSED")
+
+
 if __name__ == "__main__":
     print("Running inspection unit tests & AWS Lambda adapter tests...")
     test_clean_image_pass()

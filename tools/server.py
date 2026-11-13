@@ -781,16 +781,28 @@ th {{ color: #94a3b8; }}
 
             target_source = uploaded_file_path if uploaded_file_path else image_path
             
-            # Security path traversal check for image_path
+            # Security path traversal, realpath symlink resolution, and allow-list check for image_path
             if not uploaded_file_path and image_path:
                 normalized_img_path = os.path.normpath(image_path)
                 if ".." in normalized_img_path or os.path.isabs(normalized_img_path):
-                    if not os.path.exists(image_path):
-                        self.send_response(400)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": f"Invalid image path: {image_path}", "stage": 2}).encode("utf-8"))
-                        return
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": f"Invalid or absolute image path not allowed: {image_path}", "stage": 2}).encode("utf-8"))
+                    return
+                real_p = os.path.realpath(image_path)
+                allowed_roots = [
+                    os.path.realpath("data/workspace/images"),
+                    os.path.realpath("data/samples"),
+                    os.path.realpath("data")
+                ]
+                if not any(real_p.startswith(r) for r in allowed_roots) or not os.path.exists(real_p):
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": f"Path not allowed or does not exist: {image_path}", "stage": 2}).encode("utf-8"))
+                    return
+                target_source = real_p
 
             is_stream = bool(stream_uri)
             is_video = input_type == "video" or is_stream or (target_source and target_source.lower().endswith((".mp4", ".avi", ".mov", ".mkv", ".webm")))
