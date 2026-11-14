@@ -1,0 +1,46 @@
+{
+  "disclaimer": "synthetic benchmark, simplified physics, not field evidence",
+  "protocol_version": "v2.0",
+  "dev_seed_results": {
+    "leak": {
+      "average_detection_delay_steps": 0.4,
+      "detection_rate": 1.0
+    },
+    "bearing_wear": {
+      "average_detection_delay_steps": 0.0,
+      "detection_rate": 1.0
+    },
+    "blockage": {
+      "average_detection_delay_steps": 0.2,
+      "detection_rate": 1.0
+    },
+    "overheating": {
+      "average_detection_delay_steps": 0.0,
+      "detection_rate": 1.0
+    },
+    "steady_state_false_alarms_per_1000": 65.0
+  },
+  "held_out_results": {
+    "leak": {
+      "average_detection_delay_steps": 0.1,
+      "detection_rate": 1.0
+    },
+    "bearing_wear": {
+      "average_detection_delay_steps": 0.0,
+      "detection_rate": 1.0
+    },
+    "blockage": {
+      "average_detection_delay_steps": 0.0,
+      "detection_rate": 1.0
+    },
+    "overheating": {
+      "average_detection_delay_steps": 0.0,
+      "detection_rate": 1.0
+    },
+    "steady_state_false_alarms_per_1000": 64.69
+  },
+  "bounds_met": false,
+  "missed_reasons": [
+    "False alarms per 1000 (64.69) exceeded bound (5)"
+  ]
+}

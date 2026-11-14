@@ -3,13 +3,13 @@
 import random
 import numpy as np
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from telemetry.schema import validate_telemetry_record
 
 
 class TelemetrySimulator:
-    def __init__(self, seed: int = 42, simulator_version: str = "v1.0"):
+    def __init__(self, seed: int = 42, simulator_version: str = "v1.1"):
         self.seed = seed
         self.simulator_version = simulator_version
         self.rng = random.Random(seed)
@@ -22,9 +22,10 @@ class TelemetrySimulator:
         fault_type: str = "none",  # none, leak, bearing_wear, blockage, overheating
         fault_start_step: int = 50,
         n_steps: int = 100,
-        start_time: Optional[datetime] = None
+        start_time: Optional[datetime] = None,
+        ramp_shape: str = "linear"  # linear, exponential, weibull
     ) -> List[Dict[str, Any]]:
-        """Generates a seeded telemetry time series with optional fault injection."""
+        """Generates a seeded telemetry time series with optional fault injection and ramp shapes."""
         if start_time is None:
             start_time = datetime(2026, 11, 1, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -35,35 +36,63 @@ class TelemetrySimulator:
         base_temp = 45.0       # C
         base_vibration = 2.0   # mm/s
 
+        # Correlated noise state (AR(1) process)
+        prev_p_noise = 0.0
+        prev_f_noise = 0.0
+        prev_t_noise = 0.0
+        prev_v_noise = 0.0
+        phi = 0.4  # autocorrelation coefficient
+
         for step in range(n_steps):
             step_time = start_time + timedelta(minutes=15 * step)
             t_iso = step_time.isoformat(timespec="seconds").replace("+00:00", "Z")
 
             is_fault = step >= fault_start_step and fault_type != "none"
+            delta_steps = max(0, step - fault_start_step + 1)
 
-            # Add noise and drift
-            p_noise = self.np_rng.normal(0, 1.0)
-            f_noise = self.np_rng.normal(0, 0.5)
-            t_noise = self.np_rng.normal(0, 0.2)
-            v_noise = self.np_rng.normal(0, 0.1)
+            # Compute ramp progression factor
+            if is_fault:
+                if ramp_shape == "exponential":
+                    factor = 1.0 - np.exp(-0.3 * delta_steps)
+                elif ramp_shape == "weibull":
+                    factor = 1.0 - np.exp(-((delta_steps / 6.0) ** 1.8))
+                else:  # linear
+                    factor = min(1.0, delta_steps / 8.0)
+            else:
+                factor = 0.0
+
+            # Correlated noise (AR(1) + cross-correlation)
+            raw_p = self.np_rng.normal(0, 0.8)
+            raw_f = self.np_rng.normal(0, 0.4) + 0.3 * raw_p
+            raw_t = self.np_rng.normal(0, 0.15)
+            raw_v = self.np_rng.normal(0, 0.08) + 0.2 * raw_t
+
+            p_noise = phi * prev_p_noise + raw_p
+            f_noise = phi * prev_f_noise + raw_f
+            t_noise = phi * prev_t_noise + raw_t
+            v_noise = phi * prev_v_noise + raw_v
+
+            prev_p_noise, prev_f_noise, prev_t_noise, prev_v_noise = p_noise, f_noise, t_noise, v_noise
 
             p_val = base_pressure + p_noise
             f_val = base_flow + f_noise
             t_val = base_temp + t_noise
             v_val = base_vibration + v_noise
 
-            # Apply fault injections
+            # Apply fault injections with computed factor
             if is_fault:
                 if fault_type == "leak":
-                    p_val -= 15.0 * min(1.0, (step - fault_start_step + 1) / 10.0)
-                    f_val -= 8.0 * min(1.0, (step - fault_start_step + 1) / 10.0)
+                    p_val -= 18.0 * factor
+                    f_val -= 10.0 * factor
                 elif fault_type == "bearing_wear":
-                    v_val += 4.5 * min(1.0, (step - fault_start_step + 1) / 10.0)
+                    v_val += 5.5 * factor
+                    t_val += 3.0 * factor  # correlated thermal rise in bearing wear
                 elif fault_type == "blockage":
-                    p_val += 20.0 * min(1.0, (step - fault_start_step + 1) / 10.0)
-                    f_val -= 12.0 * min(1.0, (step - fault_start_step + 1) / 10.0)
+                    p_val += 22.0 * factor
+                    f_val -= 14.0 * factor
                 elif fault_type == "overheating":
-                    t_val += 18.0 * min(1.0, (step - fault_start_step + 1) / 10.0)
+                    t_val += 20.0 * factor
+                    p_val += 5.0 * factor  # pressure rise in overheating
 
             # Create records for 4 metrics
             step_records = [
@@ -79,7 +108,7 @@ class TelemetrySimulator:
                     "simulator_version": self.simulator_version,
                     "seed": self.seed,
                     "quality_flag": "ok",
-                    "ground_truth_fault": is_fault
+                    "ground_truth_fault": is_fault and fault_type in ["leak", "blockage", "overheating"]
                 },
                 {
                     "sensor_id": f"{asset_id}-FT-01",
@@ -93,7 +122,7 @@ class TelemetrySimulator:
                     "simulator_version": self.simulator_version,
                     "seed": self.seed,
                     "quality_flag": "ok",
-                    "ground_truth_fault": is_fault
+                    "ground_truth_fault": is_fault and fault_type in ["leak", "blockage"]
                 },
                 {
                     "sensor_id": f"{asset_id}-TT-01",
@@ -107,7 +136,7 @@ class TelemetrySimulator:
                     "simulator_version": self.simulator_version,
                     "seed": self.seed,
                     "quality_flag": "ok",
-                    "ground_truth_fault": is_fault and fault_type == "overheating"
+                    "ground_truth_fault": is_fault and fault_type in ["overheating", "bearing_wear"]
                 },
                 {
                     "sensor_id": f"{asset_id}-VT-01",

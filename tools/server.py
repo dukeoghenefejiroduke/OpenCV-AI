@@ -19,8 +19,12 @@ import urllib.parse
 import email.parser
 import time
 import uuid
+import threading
 import cv2
 import numpy as np
+
+MAX_CONCURRENT_INSPECTIONS = 5
+_inspection_semaphore = threading.Semaphore(MAX_CONCURRENT_INSPECTIONS)
 
 from vision.stream import StreamProcessor
 from vision.inspection import inspect_corrosion
@@ -31,6 +35,9 @@ from app.validation import validate_image_input
 from app.forecasting import calculate_degradation_velocity, project_time_to_critical
 from app.cmms import format_cmms_work_order
 from app.digital_twin import AssetNode
+from telemetry.simulator import TelemetrySimulator
+from twin.graph import DigitalTwinGraph
+from risk.engine import RiskFusionEngine
 
 # --- Workspace imports (additive) ---
 from workspace.store import WorkspaceStore
@@ -41,6 +48,34 @@ from vision.orchestrator import MultiHazardOrchestrator
 import hashlib
 import shutil
 import html
+
+_simulate_request_timestamps = []
+TELEMETRY_STORE_FILE = "data/status/telemetry_store.json"
+MAX_TELEMETRY_RECORDS = 5000
+
+def check_rate_limit(max_requests=10, window_seconds=60):
+    now = time.time()
+    global _simulate_request_timestamps
+    _simulate_request_timestamps = [t for t in _simulate_request_timestamps if now - t < window_seconds]
+    if len(_simulate_request_timestamps) >= max_requests:
+        return False
+    _simulate_request_timestamps.append(now)
+    return True
+
+def store_telemetry_records(new_records):
+    records = []
+    if os.path.exists(TELEMETRY_STORE_FILE):
+        try:
+            with open(TELEMETRY_STORE_FILE, "r") as f:
+                records = json.load(f)
+        except Exception:
+            records = []
+    records.extend(new_records)
+    if len(records) > MAX_TELEMETRY_RECORDS:
+        records = records[-MAX_TELEMETRY_RECORDS:]
+    os.makedirs(os.path.dirname(TELEMETRY_STORE_FILE), exist_ok=True)
+    with open(TELEMETRY_STORE_FILE, "w") as f:
+        json.dump(records, f)
 
 UPLOAD_DIR = "data/uploads"
 OUTPUT_DIR = "data/outputs"
@@ -101,7 +136,7 @@ h2 {{ margin: 0 0 0.5rem; color: #0f172a; font-size: 1.25rem; }}
   <button class="print-btn" onclick="window.print()">Print Asset Badge</button>
 </div>
 </body></html>"""
-HISTORY_FILE = os.path.join(OUTPUT_DIR, "history.json")
+HISTORY_FILE = os.environ.get("CEMENTSIGHT_TEST_HISTORY", os.path.join(OUTPUT_DIR, "history.json"))
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB limit
 MAX_JSON_BODY = 1 * 1024 * 1024    # 1 MB limit for JSON bodies
 
@@ -190,6 +225,47 @@ class CementSightHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "image/svg+xml")
             self.end_headers()
             self.wfile.write(b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#f59e0b"/><text x="16" y="21" font-size="14" font-family="monospace" font-weight="bold" fill="#090d16" text-anchor="middle">CS</text></svg>')
+            return
+
+        elif path == "/api/v2/twin/network":
+            sample_graph = {
+                "namespace": "SIM",
+                "badge": "[SIMULATED]",
+                "nodes": [
+                    {"id": "node_A", "health_status": "WARNING"},
+                    {"id": "node_B", "health_status": "CRITICAL"}
+                ],
+                "segments": [{"source": "node_A", "target": "node_B"}],
+                "assets": [{"id": "SIM-PIPE-01", "health_status": "CRITICAL"}]
+            }
+            try:
+                twin = DigitalTwinGraph(sample_graph)
+                health_summary = twin.aggregate_and_propagate_health()
+                _json_response(self, {
+                    "badge": "[SIMULATED]",
+                    "graph": sample_graph,
+                    "health_aggregation": health_summary
+                })
+            except Exception as e:
+                _json_response(self, {"error": str(e), "badge": "[SIMULATED]"}, 400)
+            return
+
+        elif path.startswith("/api/v2/telemetry/"):
+            asset_id = urllib.parse.unquote(path.split("/")[-1])
+            records = []
+            if os.path.exists(TELEMETRY_STORE_FILE):
+                try:
+                    with open(TELEMETRY_STORE_FILE, "r") as f:
+                        all_rec = json.load(f)
+                        records = [r for r in all_rec if r.get("asset_id") == asset_id]
+                except Exception:
+                    pass
+            _json_response(self, {
+                "badge": "[SIMULATED]",
+                "asset_id": asset_id,
+                "telemetry_count": len(records),
+                "records": records[-100:]
+            })
             return
 
         elif path.startswith("/data/") or path.startswith("/app/"):
@@ -449,6 +525,50 @@ th {{ color: #94a3b8; }}
     def do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
+
+        if path == "/api/v2/telemetry/simulate":
+            try:
+                if not check_rate_limit(max_requests=10, window_seconds=60):
+                    _json_response(self, {"error": "Rate limit exceeded. Maximum 10 simulation requests per minute.", "badge": "[SIMULATED]"}, 429)
+                    return
+                body = _read_body_bytes(self, max_bytes=10 * 1024)
+                data = json.loads(body.decode("utf-8") or "{}")
+                seed = int(data.get("seed", 42))
+                asset_id = str(data.get("asset_id", "SIM-PIPE-01"))
+                fault_type = str(data.get("fault_type", "leak"))
+                n_steps = int(data.get("n_steps", 50))
+
+                sim = TelemetrySimulator(seed=seed, simulator_version="v1.1")
+                records = sim.generate_series(asset_id=asset_id, fault_type=fault_type, n_steps=n_steps)
+                store_telemetry_records(records)
+
+                _json_response(self, {
+                    "badge": "[SIMULATED]",
+                    "status": "success",
+                    "records_generated": len(records),
+                    "records": records[:50]
+                })
+            except ValueError as e:
+                _json_response(self, {"error": f"Invalid input: {str(e)}", "badge": "[SIMULATED]"}, 400)
+            except Exception as e:
+                _json_response(self, {"error": f"Internal error: {str(e)}", "badge": "[SIMULATED]"}, 500)
+            return
+
+        if path == "/api/v2/risk/fuse":
+            try:
+                body = _read_body_bytes(self, max_bytes=10 * 1024)
+                data = json.loads(body.decode("utf-8") or "{}")
+                visual_report = data.get("visual_report", {})
+                anomalies = data.get("anomalies", [])
+                provenance = data.get("provenance", "simulated")
+                result = RiskFusionEngine.evaluate_risk(visual_report=visual_report, anomalies=anomalies, provenance=provenance)
+                _json_response(self, {
+                    "badge": "[SIMULATED]" if provenance == "simulated" else "[REAL]",
+                    "risk_assessment": result
+                })
+            except Exception as e:
+                _json_response(self, {"error": str(e), "badge": "[SIMULATED]"}, 400)
+            return
 
         if path == "/api/workspace/lookup-qr":
             try:
@@ -722,7 +842,8 @@ th {{ color: #94a3b8; }}
             return
 
         elif path == "/api/inspect":
-            content_length = int(self.headers.get("Content-Length", 0))
+            with _inspection_semaphore:
+                content_length = int(self.headers.get("Content-Length", 0))
             if content_length > MAX_UPLOAD_SIZE:
                 self.send_response(413)
                 self.send_header("Content-Type", "application/json")

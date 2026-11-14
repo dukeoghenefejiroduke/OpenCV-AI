@@ -97,6 +97,46 @@ class TestDashboardServer(unittest.TestCase):
             urllib.request.urlopen(req)
         self.assertEqual(ctx.exception.code, 400)
 
+    def test_8_api_v2_twin_network(self):
+        url = f"http://127.0.0.1:{self.port}/api/v2/twin/network"
+        req = urllib.request.urlopen(url)
+        self.assertEqual(req.status, 200)
+        data = json.loads(req.read().decode("utf-8"))
+        self.assertEqual(data.get("badge"), "[SIMULATED]")
+        self.assertIn("health_aggregation", data)
+
+    def test_9_api_v2_telemetry_simulate_and_get(self):
+        sim_url = f"http://127.0.0.1:{self.port}/api/v2/telemetry/simulate"
+        payload = json.dumps({"seed": 42, "asset_id": "SIM-PIPE-TEST", "fault_type": "leak", "n_steps": 20}).encode("utf-8")
+        req = urllib.request.Request(sim_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data.get("badge"), "[SIMULATED]")
+            self.assertEqual(data.get("status"), "success")
+
+        # Now get telemetry for asset
+        get_url = f"http://127.0.0.1:{self.port}/api/v2/telemetry/SIM-PIPE-TEST"
+        req_get = urllib.request.urlopen(get_url)
+        self.assertEqual(req_get.status, 200)
+        get_data = json.loads(req_get.read().decode("utf-8"))
+        self.assertEqual(get_data.get("badge"), "[SIMULATED]")
+        self.assertGreaterEqual(get_data.get("telemetry_count"), 20)
+
+    def test_10_api_v2_risk_fuse(self):
+        url = f"http://127.0.0.1:{self.port}/api/v2/risk/fuse"
+        payload = json.dumps({
+            "visual_report": {"corrosion_percentage": 18.5, "recommendation": "CRITICAL", "confirmed": True},
+            "anomalies": [{"detector": "ewma", "provenance": "simulated"}],
+            "provenance": "simulated"
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data.get("badge"), "[SIMULATED]")
+            self.assertEqual(data["risk_assessment"]["risk_level"], "CRITICAL")
+
 
 if __name__ == "__main__":
     unittest.main()

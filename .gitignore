@@ -15,3 +15,13 @@ data/status/
 data/workspace/
 data/uploads/
 node_modules/
+data/outputs/diagnostics_*
+data/outputs/foreground_roi_*
+data/outputs/history_restored.json
+data/triage/
+data/field_feedback/
+data/simulation/*_restored.json__pycache__/
+data/outputs/diagnostics_*/
+data/outputs/foreground_roi_*
+data/triage/
+data/field_feedback/

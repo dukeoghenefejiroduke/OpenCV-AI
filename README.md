@@ -46,7 +46,7 @@ The system combines classical computer vision (OpenCV) with a deterministic, rul
 - **Input Validation & Safety Layer:** Dimension sanity checks (minimum 128x128 pixels) to prevent unreliable inspection on undersized or corrupt images.
 - **AWS Lambda Adapter:** Ready-to-deploy serverless adapter supporting Function URLs with structured JSON error handling (HTTP 400/200).
 - **Reproducible Evaluation Harness:** Automated evaluation script (`tools/evaluate.py`) capturing environment metrics, performance, robustness, and safety evidence.
-- **Comprehensive Automated Tests:** 82 robust unit, integration, multi-hazard, robustness, and validation test cases.
+- **Comprehensive Automated Tests:** 156 robust unit, integration, multi-hazard, robustness, digital twin, risk fusion, and validation test cases.
 
 ---
 
