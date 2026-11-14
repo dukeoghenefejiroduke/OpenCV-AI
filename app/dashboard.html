@@ -819,12 +819,17 @@
 
                 const auth = insp.authoritative_report || {};
                 const dec = auth.decision || 'WARNING';
+                const imgQuality = (insp.detector_results && insp.detector_results.image_quality) || {};
+                const isLowQuality = imgQuality.verdict === 'LOW_QUALITY';
                 
                 // Update metrics bar in Tab 2
                 const metricDec = document.getElementById('metric-decision');
                 if (metricDec) {
                     metricDec.innerText = dec;
-                    metricDec.className = `font-bold text-sm sm:text-base mt-0.5 ${dec === 'CRITICAL' ? 'text-rose-400' : (dec === 'WARNING' ? 'text-amber-400' : 'text-emerald-400')}`;
+                    let decColor = 'text-emerald-400';
+                    if (dec === 'CRITICAL') decColor = 'text-rose-400';
+                    else if (dec === 'WARNING' || isLowQuality) decColor = 'text-amber-400';
+                    metricDec.className = `font-bold text-sm sm:text-base mt-0.5 ${decColor}`;
                 }
                 const metricCorr = document.getElementById('metric-corrosion');
                 if (metricCorr) {
@@ -891,7 +896,7 @@
             container.innerHTML = "";
 
             if (!wsCachedFindings || wsCachedFindings.length === 0) {
-                container.innerHTML = `<div class="text-xs font-mono text-slate-500 text-center py-8">No inspection findings loaded. Run an inspection or load one from history.</div>`;
+                container.innerHTML = `<div class="text-xs font-mono text-slate-400 text-center py-8">No corrosion candidates found in this photo. This does not certify the asset.</div>`;
                 return;
             }
 
@@ -904,7 +909,7 @@
 
             if (visibleFindings.length === 0) {
                 if (emptyEl) emptyEl.classList.remove("hidden");
-                container.innerHTML = `<div class="text-xs font-mono text-slate-500 text-center py-6">No findings match this filter.</div>`;
+                container.innerHTML = `<div class="text-xs font-mono text-slate-400 text-center py-6">No corrosion candidates found in this photo. This does not certify the asset.</div>`;
                 return;
             } else {
                 if (emptyEl) emptyEl.classList.add("hidden");

@@ -137,6 +137,20 @@ class TestDashboardServer(unittest.TestCase):
             self.assertEqual(data.get("badge"), "[SIMULATED]")
             self.assertEqual(data["risk_assessment"]["risk_level"], "CRITICAL")
 
+    def test_11_api_workspace_inspection_default_detectors(self):
+        url = f"http://127.0.0.1:{self.port}/api/workspace/inspection"
+        payload = json.dumps({"image_path": "data/pipe_corrosion.jpg", "asset_id": "PIPE-DEF"}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 201)
+            data = json.loads(resp.read().decode("utf-8"))
+            summaries = data.get("detector_summaries", [])
+            detector_ids = [s.get("detector_id") for s in summaries]
+            # By default, should run only corrosion_detector (plus quality gate)
+            self.assertIn("corrosion_detector", detector_ids)
+            self.assertNotIn("rust_detector", detector_ids)
+            self.assertNotIn("crack_detector", detector_ids)
+
 
 if __name__ == "__main__":
     unittest.main()

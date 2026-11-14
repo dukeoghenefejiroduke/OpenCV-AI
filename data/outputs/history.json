@@ -1,7 +1,7 @@
 [
   {
-    "inspection_id": "fb384c6f84",
-    "timestamp": "2026-11-14 10:16:40",
+    "inspection_id": "ebf29a7786",
+    "timestamp": "2026-11-14 18:01:23",
     "asset_id": "PIPE-01",
     "input_filename": "pipe_corrosion.jpg",
     "input_type": "image",
@@ -10,7 +10,7 @@
     "approval_required": false,
     "corrosion_percentage": 6.56,
     "region_count": 11,
-    "annotated_output": "data/outputs/live_annotated_fb384c6f84.jpg",
+    "annotated_output": "data/outputs/live_annotated_ebf29a7786.jpg",
     "cmms_status": "PAYLOAD PREPARED \u2014 NOT DISPATCHED",
     "forecast_status": "insufficient history"
   }

@@ -23,9 +23,9 @@ from vision.orchestrator import MultiHazardOrchestrator
 from vision.quality_gate import ImageQualityGate
 
 
-def run_triage(target_paths: list, feedback_dir: str = "data/field_feedback", output_dir: str = "data/triage") -> dict:
+def run_triage(target_paths: list, feedback_dir: str = "data/field_feedback", output_dir: str = "data/triage", enable_experimental: bool = False) -> dict:
     os.makedirs(output_dir, exist_ok=True)
-    orchestrator = MultiHazardOrchestrator(enable_experimental_buildup=True)
+    orchestrator = MultiHazardOrchestrator(enable_experimental=enable_experimental)
 
     image_extensions = ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG")
     image_paths = []
@@ -51,10 +51,12 @@ def run_triage(target_paths: list, feedback_dir: str = "data/field_feedback", ou
         "zero_findings": [],
         "many_findings": [],
         "quality_gate_verdicts": {},
+        "detector_counts": {},
         "results": []
     }
 
-    print(f"[Triage] Scanning {len(image_paths)} images across targets: {target_paths}")
+    print(f"[Triage] Scanning {len(image_paths)} images across targets: {target_paths} (experimental={enable_experimental})")
+    sys.stdout.flush()
 
     for img_path in image_paths:
         try:
@@ -66,10 +68,15 @@ def run_triage(target_paths: list, feedback_dir: str = "data/field_feedback", ou
             report = orchestrator.run_inspections(img)
             summary["processed"] += 1
 
-            q_verdict = report.get("quality_gate", {}).get("verdict", "UNKNOWN")
+            q_verdict = report.get("image_quality", {}).get("verdict", "UNKNOWN")
             summary["quality_gate_verdicts"][img_path] = q_verdict
 
-            findings = report.get("all_findings", [])
+            findings = []
+            for det_id, det_res in report.get("detectors", {}).items():
+                if isinstance(det_res, dict):
+                    det_findings = det_res.get("findings", [])
+                    findings.extend(det_findings)
+                    summary["detector_counts"][det_id] = summary["detector_counts"].get(det_id, 0) + len(det_findings)
             finding_count = len(findings)
 
             if finding_count == 0:
@@ -88,7 +95,7 @@ def run_triage(target_paths: list, feedback_dir: str = "data/field_feedback", ou
 
             overlay_img = img.copy()
             for finding in findings:
-                bbox = finding.get("bounding_box")
+                bbox = finding.get("bounding_box") or finding.get("bbox")
                 if bbox and len(bbox) == 4:
                     x, y, w, h = bbox
                     cv2.rectangle(overlay_img, (int(x), int(y)), (int(x+w), int(y+h)), (0, 0, 255), 2)
@@ -108,26 +115,22 @@ def run_triage(target_paths: list, feedback_dir: str = "data/field_feedback", ou
             print(f"[Triage Error] Failed processing {img_path}: {e}")
             summary["failed"] += 1
 
-    feedback_results = []
-    if os.path.exists(feedback_dir):
-        for fb_file in glob.glob(os.path.join(feedback_dir, "*.jsonl")):
-            with open(fb_file, "r") as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            feedback_results.append(json.loads(line))
-                        except json.JSONDecodeError:
-                            pass
-
     timestamp_str = time.strftime("%Y%m%d_%H%M%S")
     summary_path = os.path.join(output_dir, f"triage_summary_{timestamp_str}.json")
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2, default=str)
 
     print(f"[Triage] Completed. Processed: {summary['processed']}, Failed: {summary['failed']}")
+    print("\n--- PER-DETECTOR FINDINGS TABLE ---")
+    print(f"{'DETECTOR ID':<30} | {'TOTAL FINDINGS COUNT':<20}")
+    print("-" * 55)
+    for det_id, count in summary['detector_counts'].items():
+        print(f"{det_id:<30} | {count:<20}")
+    print("-" * 55)
     print(f"[Triage] Zero findings count: {len(summary['zero_findings'])}")
     print(f"[Triage] Many findings count: {len(summary['many_findings'])}")
     print(f"[Triage] Timestamped summary saved to {summary_path}")
+    sys.stdout.flush()
 
     return summary
 
@@ -137,10 +140,7 @@ def main():
     parser.add_argument("paths", nargs="*", default=["data"], help="Target image files or directories to triage")
     parser.add_argument("--feedback-dir", default="data/field_feedback", help="Path to field feedback directory")
     parser.add_argument("--output-dir", default="data/triage", help="Path to output triage directory")
+    parser.add_argument("--experimental", action="store_true", help="Enable experimental/additional non-default detectors")
     args = parser.parse_args()
 
-    run_triage(target_paths=args.paths, feedback_dir=args.feedback_dir, output_dir=args.output_dir)
-
-
-if __name__ == "__main__":
-    main()
+    run_triage(target_paths=args.paths, feedback_dir=args.feedback_dir, output_dir=args.output_dir, enable_experimental=args.experimental)

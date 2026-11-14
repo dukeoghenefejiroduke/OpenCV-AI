@@ -11,6 +11,7 @@ import numpy as np
 from vision.contract import BaseDetector, validate_finding, STATUS_DETECTOR_FAILED
 from vision.quality_gate import ImageQualityGate
 from vision.corrosion_detector import CorrosionDetector
+from vision.rust_detector import RustDetector
 from vision.crack_detector import CrackDetector
 from vision.surface_defect_detector import SurfaceDefectDetector
 from vision.leakage_detector import LeakageDetector
@@ -21,17 +22,20 @@ from vision.material_buildup_detector import MaterialBuildupDetector
 class MultiHazardOrchestrator:
     """Orchestrates multiple modular vision detectors with pre-inspection quality gating and fault isolation."""
 
-    def __init__(self, enable_experimental_buildup: bool = False):
+    def __init__(self, enable_experimental: bool = False):
         self.quality_gate = ImageQualityGate()
         self.detectors: List[BaseDetector] = [
-            CorrosionDetector(),
-            CrackDetector(),
-            SurfaceDefectDetector(),
-            LeakageDetector(),
-            InsulationDetector()
+            CorrosionDetector()
         ]
-        if enable_experimental_buildup:
-            self.detectors.append(MaterialBuildupDetector())
+        if enable_experimental:
+            self.detectors.extend([
+                RustDetector(),
+                CrackDetector(),
+                SurfaceDefectDetector(),
+                LeakageDetector(),
+                InsulationDetector(),
+                MaterialBuildupDetector()
+            ])
 
     def register_detector(self, detector: BaseDetector):
         """Registers a new modular detector at runtime."""

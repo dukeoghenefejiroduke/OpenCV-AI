@@ -88,7 +88,7 @@ def test_crack_detector_synthetic_fixtures():
 
 def test_multi_hazard_orchestrator():
     """Tests the multi-hazard orchestrator runs all detectors successfully."""
-    orchestrator = MultiHazardOrchestrator()
+    orchestrator = MultiHazardOrchestrator(enable_experimental=True)
     sample_path = "data/pipe_corrosion.jpg"
     if not os.path.exists(sample_path):
         # Use synthetic image if sample image not available
@@ -104,4 +104,4 @@ def test_multi_hazard_orchestrator():
     assert "surface_defect_detector" in platform_report["detectors"]
     assert "leakage_detector" in platform_report["detectors"]
     assert "insulation_detector" in platform_report["detectors"]
-    assert len(platform_report["detector_summaries"]) == 5
+    assert len(platform_report["detector_summaries"]) == 7

@@ -44,7 +44,7 @@ def test_friendly_error_handling():
 
 def test_feature_flags_default():
     """Test that by default only core corrosion and quality gate are primary, experimental are off."""
-    orchestrator = MultiHazardOrchestrator(enable_experimental_buildup=False)
+    orchestrator = MultiHazardOrchestrator(enable_experimental=False)
     detector_ids = [d.detector_id for d in orchestrator.detectors]
     assert "corrosion_detector" in detector_ids
     assert "material_buildup_detector" not in detector_ids

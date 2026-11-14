@@ -54,7 +54,7 @@ def test_insulation_detector_invalid_inputs():
 
 def test_orchestrator_five_detectors_integration():
     """Tests that MultiHazardOrchestrator runs all 5 detectors safely."""
-    orchestrator = MultiHazardOrchestrator()
+    orchestrator = MultiHazardOrchestrator(enable_experimental=True)
     sample_path = "data/pipe_corrosion.jpg"
     if not os.path.exists(sample_path):
         img = np.full((300, 300, 3), 200, dtype=np.uint8)
@@ -68,7 +68,7 @@ def test_orchestrator_five_detectors_integration():
     assert "surface_defect_detector" in report["detectors"]
     assert "leakage_detector" in report["detectors"]
     assert "insulation_detector" in report["detectors"]
-    assert len(report["detector_summaries"]) == 5
+    assert len(report["detector_summaries"]) == 7
 
     # Verify authoritative corrosion inspection report is preserved
     auth_rep = report["authoritative_inspection_report"]
