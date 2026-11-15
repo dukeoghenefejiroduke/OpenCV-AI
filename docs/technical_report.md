@@ -355,7 +355,7 @@ Potential avenues for future development include:
 CementSight has successfully delivered a robust, reproducible, and safety-conscious industrial vision inspection and decision-support prototype. 
 
 Key demonstrated achievements include:
-- A fully functional OpenCV vision inspection pipeline (`vision/inspection.py`).
+- A working OpenCV vision inspection pipeline (screening aid; accuracy not validated) (`vision/inspection.py`).
 - A deterministic agent decision layer with mandatory human oversight (`agent/decision.py`).
 - Comprehensive pre-inspection input validation (`app/validation.py`).
 - A fully passing test suite (34/34 tests passing).

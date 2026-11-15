@@ -136,7 +136,7 @@
 
   <!-- Legend & Notes -->
   <rect x="630" y="800" width="500" height="370" class="sub-box"/>
-  <text x="650" y="830" class="section-title">Architecture Legend &amp; Guarantees</text>
+  <text x="650" y="830" class="section-title">Architecture Legend &amp; Design Rules</text>
   
   <rect x="650" y="855" width="20" height="20" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
   <text x="685" y="870" class="text">Standard Pipeline Stage</text>
@@ -150,7 +150,7 @@
   <rect x="650" y="975" width="20" height="20" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
   <text x="685" y="990" class="text">Cloud Target (Pending Activation)</text>
 
-  <text x="650" y="1035" class="text-bold">Key Engineering Guarantees:</text>
+  <text x="650" y="1035" class="text-bold">Key Engineering Design Rules:</text>
   <text x="650" y="1055" class="small-text">• Rule-based decisions; no LLM in the safety path</text>
   <text x="650" y="1075" class="small-text">• Frozen OpenCV vision pipeline (vision/inspection.py untouched)</text>
   <text x="650" y="1095" class="small-text">• 34/34 automated tests passing across inspection, agent, &amp; validation</text>
