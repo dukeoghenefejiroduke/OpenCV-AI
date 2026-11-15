@@ -153,7 +153,7 @@
   <text x="650" y="1035" class="text-bold">Key Engineering Design Rules:</text>
   <text x="650" y="1055" class="small-text">• Rule-based decisions; no LLM in the safety path</text>
   <text x="650" y="1075" class="small-text">• Frozen OpenCV vision pipeline (vision/inspection.py untouched)</text>
-  <text x="650" y="1095" class="small-text">• 34/34 automated tests passing across inspection, agent, &amp; validation</text>
+  <text x="650" y="1095" class="small-text">• Automated test suite (run python -m pytest for current results)</text>
   <text x="650" y="1115" class="small-text">• Reproducible evaluation harness with machine-readable JSON reports</text>
 
 </svg>
