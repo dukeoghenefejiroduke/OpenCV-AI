@@ -658,13 +658,16 @@ th {{ color: #94a3b8; }}
                         with open(norm, "rb") as f:
                             image_bytes = f.read()
                         image_name = os.path.basename(norm)
-                    for k in ("asset_id", "inspection_date", "pipe_material", "pipe_type", "location", "criticality", "inspector_notes"):
+                    for k in ("asset_id", "inspection_date", "pipe_material", "pipe_type", "location", "criticality", "inspector_notes", "surface", "same_position"):
                         if k in data:
                             params[k] = str(data[k])
 
                 asset_id = (params.get("asset_id") or "").strip()
                 inspection_date = (params.get("inspection_date") or time.strftime("%Y-%m-%d")).strip()
                 location = (params.get("location") or "").strip()
+                surface = (params.get("surface") or "not_sure").strip()
+                same_position = str(params.get("same_position", "false")).lower() in ("true", "1", "yes")
+
                 if not asset_id:
                     _json_response(self, {"error": "asset_id is required"}, 400); return
                 if image_bytes is None or len(image_bytes) == 0:
@@ -692,9 +695,34 @@ th {{ color: #94a3b8; }}
                     annotated_output_path = os.path.join(OUTPUT_DIR, f"live_annotated_{insp_id}.jpg")
                     roi_output_path = os.path.join(OUTPUT_DIR, f"foreground_roi_{insp_id}.jpg")
 
-                    orch = MultiHazardOrchestrator()
-                    result = orch.run_inspections(decoded, output_annotated_path=annotated_output_path, output_roi_path=roi_output_path, use_roi=True)
-                    authoritative = result.get("authoritative_inspection_report", {})
+                    if surface in ("brick_concrete_wood", "other_metal_non_steel"):
+                        surface_desc = "brick, concrete, wood" if surface == "brick_concrete_wood" else "copper, brass, aluminium or other non-steel metal"
+                        rec_text = f"Corrosion screening is not applicable to this surface ({surface_desc})."
+                        authoritative = {
+                            "corrosion_percentage": 0.0,
+                            "region_count": 0,
+                            "recommendation": rec_text,
+                            "reason": rec_text,
+                            "surface": surface,
+                            "screening_label": f"screening aid for steel only; {surface} excluded",
+                            "same_position": same_position,
+                            "bounding_boxes": [],
+                            "detectors": {}
+                        }
+                        result = {"detectors": {}, "authoritative_inspection_report": authoritative, "detector_summaries": []}
+                        shutil.copyfile(img_abs, annotated_output_path)
+                    else:
+                        orch = MultiHazardOrchestrator()
+                        result = orch.run_inspections(decoded, output_annotated_path=annotated_output_path, output_roi_path=roi_output_path, use_roi=True)
+                        authoritative = result.get("authoritative_inspection_report", {})
+                        authoritative["same_position"] = same_position
+                        if surface == "not_sure":
+                            authoritative["surface"] = "not_sure"
+                            warning_text = "WARNING: Rust-coloured materials (brick, wood, concrete) can trigger false alarms."
+                            authoritative["reason"] = warning_text + " " + authoritative.get("reason", "")
+                            authoritative["recommendation"] = authoritative.get("recommendation", "") + " [Warning: surface uncertain - check for false alarms]"
+                        elif surface != "other_metal_non_steel":
+                            authoritative["surface"] = "bare_or_painted_metal"
 
                     decision = evaluate_inspection(authoritative)
                     work_order = format_cmms_work_order(asset_id, decision, authoritative.get("corrosion_percentage", 0.0))

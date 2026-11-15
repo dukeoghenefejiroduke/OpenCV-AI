@@ -189,6 +189,19 @@
                                     </select>
                                 </div>
                             </div>
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Surface Type</label>
+                                <select id="ws-surface" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2 text-xs font-mono text-slate-200 focus:border-amber-500 outline-none">
+                                    <option value="bare_or_painted_metal" selected>Bare / Painted Metal (Steel)</option>
+                                    <option value="brick_concrete_wood">Brick / Concrete / Wood</option>
+                                    <option value="other_metal_non_steel">Other Metal (Copper, Brass, Aluminium)</option>
+                                    <option value="not_sure">Not Sure / Other</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2 pt-1">
+                                <input type="checkbox" id="ws-same-position" class="rounded bg-[#050811] border border-[#1a233d] text-amber-500 focus:ring-0">
+                                <label for="ws-same-position" class="text-[11px] font-mono text-slate-300">Same position/distance as last time</label>
+                            </div>
                         </div>
                     </div>
                     <div class="pt-3">
@@ -445,7 +458,7 @@
                     <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Maintenance & Repair Work Orders</h2>
                     <p class="text-[11px] text-slate-400 font-mono mt-0.5">CMMS integration for logging field repairs and defect resolution</p>
                 </div>
-                <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-[#050811] border border-[#1a233d] text-slate-300">CMMS Sync</span>
+                <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-[#050811] border border-[#1a233d] text-slate-300">CMMS Sync (Design Only)</span>
             </div>
             <div class="eng-card p-4 sm:p-5 rounded-lg space-y-4 max-w-xl font-mono text-xs border border-[#1a233d]">
                 <div class="font-bold text-white text-sm">Log Maintenance Action</div>
@@ -736,6 +749,8 @@
             const material = document.getElementById('ws-material').value.trim() || 'steel';
             const criticality = document.getElementById('ws-criticality').value;
             const date = new Date().toISOString().split('T')[0];
+            const surface = document.getElementById('ws-surface').value;
+            const samePosition = document.getElementById('ws-same-position').checked;
             const btn = document.getElementById('run-btn');
             const loadingOverlay = document.getElementById('loading-overlay');
             const msgEl = document.getElementById('ws-message');
@@ -754,6 +769,8 @@
                     formData.append('pipe_material', material);
                     formData.append('criticality', criticality);
                     formData.append('inspection_date', date);
+                    formData.append('surface', surface);
+                    formData.append('same_position', samePosition ? 'true' : 'false');
                     response = await fetch('/api/workspace/inspection', {
                         method: 'POST',
                         body: formData
@@ -768,7 +785,9 @@
                             pipe_material: material,
                             criticality: criticality,
                             inspection_date: date,
-                            image_path: imagePath
+                            image_path: imagePath,
+                            surface: surface,
+                            same_position: samePosition
                         })
                     });
                 }
@@ -842,7 +861,9 @@
                     metricApp.className = `font-bold text-sm sm:text-base mt-0.5 ${auth.approval_required ? 'text-amber-400' : 'text-emerald-400'}`;
                 }
 
-                document.getElementById('res-reason').innerText = (auth.reason || auth.summary || 'Inspection screening completed.') + " (Approximate screening estimate, not certified physical measurement).";
+                let reasonText = auth.reason || auth.summary || 'Inspection screening completed.';
+                const screeningLabel = auth.screening_label || 'screening aid for steel; rust-coloured materials such as brick and wood can trigger false alarms';
+                document.getElementById('res-reason').innerText = `${reasonText} [${screeningLabel}]`;
                 document.getElementById('res-action').innerText = auth.action || 'Ongoing monitoring';
 
                 if (wsImageViewMode === 'annotated') {

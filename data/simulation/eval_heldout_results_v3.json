@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-11-15 14:34:30 UTC",
+  "protocol": "eval_protocol_v3.json",
+  "disclaimer": "synthetic benchmark, simplified physics, not field evidence",
+  "dev_results": {
+    "leak": {
+      "average_detection_delay_steps": 0.6,
+      "max_allowed_delay_steps": 8,
+      "criterion_met": true
+    },
+    "bearing_wear": {
+      "average_detection_delay_steps": 0.0,
+      "max_allowed_delay_steps": 12,
+      "criterion_met": true
+    },
+    "blockage": {
+      "average_detection_delay_steps": 0.0,
+      "max_allowed_delay_steps": 10,
+      "criterion_met": true
+    },
+    "overheating": {
+      "average_detection_delay_steps": 0.0,
+      "max_allowed_delay_steps": 10,
+      "criterion_met": true
+    },
+    "steady_state_false_alarms_per_1000": 62.5,
+    "max_allowed_false_alarms_per_1000": 5,
+    "false_alarm_criterion_met": false
+  },
+  "held_out_results": {
+    "leak": {
+      "average_detection_delay_steps": 0.4,
+      "max_allowed_delay_steps": 8,
+      "criterion_met": true
+    },
+    "bearing_wear": {
+      "average_detection_delay_steps": 0.0,
+      "max_allowed_delay_steps": 12,
+      "criterion_met": true
+    },
+    "blockage": {
+      "average_detection_delay_steps": 0.0,
+      "max_allowed_delay_steps": 10,
+      "criterion_met": true
+    },
+    "overheating": {
+      "average_detection_delay_steps": 0.0,
+      "max_allowed_delay_steps": 10,
+      "criterion_met": true
+    },
+    "steady_state_false_alarms_per_1000": 64.69,
+    "max_allowed_false_alarms_per_1000": 5,
+    "false_alarm_criterion_met": false
+  }
+}

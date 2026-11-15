@@ -1,3 +1,5 @@
+> **Research prototype. Screening aid only. Not validated for real-world use.**
+
 # CementSight
 
 CementSight is an industrial visual inspection system for detecting corrosion-like surface conditions on cement/industrial equipment and turning visual findings into actionable maintenance decisions.

@@ -35,6 +35,23 @@ def generate_html_report(
     img_path = store.image_path(inspection.image_sha256, inspection.image_ext)
     img_uri = _data_uri(img_path, _mime_for(inspection.image_ext))
 
+    annotated_path = os.path.join("data", "outputs", f"live_annotated_{inspection.inspection_id}.jpg")
+    annotated_uri = _data_uri(annotated_path, "image/jpeg") if os.path.exists(annotated_path) else img_uri
+
+    auth_rep = inspection.authoritative_report or {}
+    corrosion_pct = auth_rep.get("corrosion_percentage", 0.0)
+    region_count = auth_rep.get("region_count", 0)
+    surface = auth_rep.get("surface", "bare_or_painted_metal")
+    if surface in ("brick_concrete_wood", "other_metal_non_steel") or (corrosion_pct == 0.0 and region_count == 0):
+        verdict = "No corrosion candidates found. This does not certify the asset."
+    else:
+        verdict = "WARNING" if corrosion_pct > 2.0 else "PASS"
+        if corrosion_pct > 10.0:
+            verdict = "CRITICAL"
+
+    approval_required = "Yes" if verdict in ("WARNING", "CRITICAL") else "No"
+    suggested_action = auth_rep.get("recommendation", "Routine maintenance inspection & monitoring.")
+
     total_findings = len(findings)
     confirmed_count = sum(1 for f in findings if f.human_review_status == "confirmed")
     rejected_count = sum(1 for f in findings if f.human_review_status == "rejected")
@@ -58,12 +75,12 @@ def generate_html_report(
           <td>{html.escape(f.review_notes or '')}</td>
         </tr>""")
 
-    rationale_html = "".join(f"<li>{html.escape(r)}</li>" for r in priority.rationale)
+    rationale_html = "".join(f"<li>{html.escape(r)}</li>" for r in (priority.rationale if priority else []))
 
     doc = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inspection Report {html.escape(inspection.inspection_id)}</title>
+<title>Supervisor Inspection Report - {html.escape(inspection.inspection_id)}</title>
 <style>
   body {{ font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 1rem; }}
   .wrap {{ max-width: 900px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
@@ -83,55 +100,61 @@ def generate_html_report(
   .status-badge.confirmed {{ background: #bbf7d0; color: #166534; }}
   .status-badge.rejected {{ background: #e2e8f0; color: #475569; }}
   .pill {{ display:inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }}
-  .pill.routine {{ background:#e0f2fe; color:#075985; }}
-  .pill.follow {{ background:#fef9c3; color:#854d0e; }}
-  .pill.priority {{ background:#fee2e2; color:#991b1b; }}
-  .pill.urgent {{ background:#dc2626; color:#fff; }}
+  .img-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }}
   img {{ max-width: 100%; border-radius: 8px; border: 1px solid #e2e8f0; }}
   ul {{ padding-left: 1.25rem; }}
-  @media (max-width: 600px) {{ table, th, td {{ font-size: 0.75rem; }} }}
+  @media print {{
+    body {{ background: #fff; padding: 0; }}
+    .wrap {{ box-shadow: none; border: none; padding: 0; max-width: 100%; }}
+  }}
 </style></head>
 <body><div class="wrap">
-<h1>Inspection Report — {html.escape(inspection.inspection_id)}</h1>
+<h1>Supervisor Inspection Report — {html.escape(inspection.inspection_id)}</h1>
 <div class="banner not-cert"><strong>Not a certification and not engineering approval.</strong> This report documents provisional machine suggestions and human review notes. Final maintenance decisions must be made by a qualified human.</div>
 
-<div class="scope-box"><strong>Scope of this report:</strong> This report documents provisional machine suggestions and any human review notes recorded against them. It does not constitute certification, engineering approval, or authorisation to operate. Optical screening cannot establish corrosion depth, remaining pipe lifespan, internal structural integrity, or active leakage.</div>
+<div class="scope-box"><strong>Scope & Limitations:</strong> This report documents provisional machine suggestions and human review records. It does not constitute certification or engineering approval. Optical screening ({corrosion_pct}% computer-vision screening estimate for steel; rust-coloured materials such as brick and wood can trigger false alarms) cannot establish internal structural integrity, corrosion depth, or remaining pipe lifespan.</div>
 
 <div class="summary-counts">
-  Total findings: {total_findings} | Human-confirmed: {confirmed_count} | Rejected: {rejected_count} | Needs follow-up: {followup_count} | Unreviewed: {unreviewed_count}
+  Quality Verdict: <strong>{html.escape(verdict)}</strong> | Corrosion Screening Estimate: {corrosion_pct}% | Surface Type: <strong>{html.escape(auth_rep.get('surface', 'bare_or_painted_metal'))}</strong> | Regions: {region_count} | Approval Required: <strong>{html.escape(approval_required)}</strong><br>
+  Review State: Confirmed ({confirmed_count}) / Unreviewed ({unreviewed_count}) / Rejected ({rejected_count}) | Software Version: CementSight AI v1.3.0
 </div>
 
-<h2 style="font-size:1rem;">Asset</h2>
+<h2 style="font-size:1rem;">Asset Context</h2>
 <p>
 <strong>Asset ID:</strong> {html.escape(asset.asset_id) if asset else '(unknown)'}<br>
 <strong>Location:</strong> {html.escape(asset.location) if asset else '(unknown)'}<br>
 <strong>Pipe material:</strong> {html.escape(asset.pipe_material) if asset else '(unknown)'}<br>
-<strong>Pipe type:</strong> {html.escape(asset.pipe_type) if asset else '(unknown)'}<br>
 <strong>Criticality:</strong> {html.escape(asset.criticality) if asset else '(unknown)'}
 </p>
 
-<h2 style="font-size:1rem;">Inspection</h2>
-<p>
-<strong>Date:</strong> {html.escape(inspection.inspection_date)}<br>
-<strong>Original image SHA-256:</strong> <code>{html.escape(inspection.image_sha256)}</code>
-</p>
-<p><img src="{img_uri}" alt="Inspection image"></p>
+<h2 style="font-size:1rem;">Inspection Evidence & Overlays</h2>
+<p><strong>Date:</strong> {html.escape(inspection.inspection_date)} | <strong>Original Image SHA-256:</strong> <code>{html.escape(inspection.image_sha256)}</code></p>
+<div class="img-grid">
+  <div>
+    <div style="font-size:0.8rem; font-weight:bold; margin-bottom:0.25rem;">Original Photo</div>
+    <img src="{img_uri}" alt="Original Inspection Image">
+  </div>
+  <div>
+    <div style="font-size:0.8rem; font-weight:bold; margin-bottom:0.25rem;">Annotated Overlay</div>
+    <img src="{annotated_uri}" alt="Annotated Overlay">
+  </div>
+</div>
 
-<h2 style="font-size:1rem;">Machine findings vs. human review</h2>
+<h2 style="font-size:1rem;">Suggestions</h2>
+<p><strong>Suggested Action:</strong> {html.escape(suggested_action)}</p>
+<ul>{rationale_html}</ul>
+
+<h2 style="font-size:1rem;">Machine Findings vs. Human Review</h2>
 <table>
 <thead><tr><th>Status</th><th>Detector</th><th>Category</th><th>BBox (px)</th><th>Confidence / score</th><th>Notes</th></tr></thead>
 <tbody>
 {''.join(rows) if rows else '<tr><td colspan="6">No findings.</td></tr>'}
 </tbody></table>
 
-<h2 style="font-size:1rem;">Maintenance priority</h2>
-<p><span class="pill {html.escape(priority.category.split('_')[0])}">{html.escape(priority.category)}</span> (score {priority.score})</p>
-<ul>{rationale_html}</ul>
-
-<h2 style="font-size:1rem;">Inspector notes</h2>
+<h2 style="font-size:1rem;">Inspector Notes</h2>
 <p>{html.escape(inspection.inspector_notes or '(none)')}</p>
 
-<h2 style="font-size:1rem;">Limitations</h2>
+<h2 style="font-size:1rem;">Limitations & Disclaimers</h2>
 <ul>
 <li>Detector scores are heuristic and are not calibrated probabilities.</li>
 <li>RGB imagery cannot prove active water leakage, internal structural integrity, corrosion depth, or remaining pipe lifespan.</li>
@@ -139,8 +162,13 @@ def generate_html_report(
 <li>This report does not constitute certification, engineering approval, or authorization to operate.</li>
 </ul>
 
+<div style="margin-top: 3rem; display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 1rem; page-break-inside: avoid;">
+  <div><strong>Supervisor Signature:</strong> ___________________________</div>
+  <div><strong>Date:</strong> ___________________</div>
+</div>
+
 <p style="margin-top:2rem; font-size:0.75rem; color:#64748b;">
-Generated locally by CementSight AI. No image data was transmitted to any external service.
+Generated locally by CementSight AI v1.3.0. No image data transmitted to external services.
 </p>
 </div></body></html>
 """

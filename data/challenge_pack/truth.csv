@@ -1,0 +1,25 @@
+file,category,truth
+data/challenge_pack/Brown Wood1.jpg,wood,0
+data/challenge_pack/Brown Wood2.jpg,wood,0
+data/challenge_pack/Orange1.jpg,orange,0
+data/challenge_pack/Orange2.jpg,orange,0
+data/challenge_pack/Red Brick1.jpg,red_brick,0
+data/challenge_pack/Red Brick2.jpg,red_brick,0
+data/challenge_pack/Rust in Shadow1.jpg,rust_shadow,1
+data/challenge_pack/Rust in Shadow2.jpg,rust_shadow,1
+data/challenge_pack/Silver1.jpg,silver,0
+data/challenge_pack/Silver2.jpg,silver,0
+data/challenge_pack/Thin Corrosion1.jpg,thin_corrosion,1
+data/challenge_pack/Thin Corrosion2.jpg,thin_corrosion,1
+data/challenge_pack/blur.jpeg,blur,0
+data/challenge_pack/blur2.jpeg,blur,0
+data/challenge_pack/clean.jpeg,clean,0
+data/challenge_pack/clean2.jpeg,clean,0
+data/challenge_pack/cluster.jpeg,cluster,1
+data/challenge_pack/cluster 2.jpeg,cluster,1
+data/challenge_pack/dark.jpeg,dark,1
+data/challenge_pack/dark2.jpeg,dark,1
+data/challenge_pack/joint.jpeg,joint,1
+data/challenge_pack/joint2.jpeg,joint,1
+data/challenge_pack/rust.jpeg,rust,1
+data/challenge_pack/rust2.jpeg,rust,1

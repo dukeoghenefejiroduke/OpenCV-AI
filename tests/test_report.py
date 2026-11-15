@@ -35,3 +35,31 @@ def test_report_has_required_banners_and_no_approval_language(tmp_path):
     assert "certified" not in html.lower() or "not a certification" in html.lower()
     # original image embedded
     assert "data:image/jpeg;base64," in html
+
+
+def test_supervisor_report_xss_and_elements(tmp_path):
+    s = WorkspaceStore(root=str(tmp_path))
+    xss_asset_id = "PIPE-<script>alert(1)</script>"
+    s.upsert_asset(Asset(asset_id=xss_asset_id, location="Plant <img src=x onerror=alert(1)>"))
+    sha, ext = s.store_image(JPEG_1PX)
+    insp = Inspection(
+        inspection_id="INS-<script>", asset_id=xss_asset_id, inspection_date="2026-11-15",
+        image_sha256=sha, image_ext=ext,
+        authoritative_report={"corrosion_percentage": 3.5, "surface": "bare_or_painted_metal"},
+        inspector_notes="Notes <script>alert(1)</script>",
+    )
+    s.create_inspection(insp)
+    p = score(s.get_asset(xss_asset_id), insp, [], history=[])
+    out = os.path.join(str(tmp_path), "report_xss.html")
+    generate_html_report(s, insp, [], p, out)
+    html_content = open(out, encoding="utf-8").read()
+    # Check escaping
+    assert "<script>" not in html_content
+    assert "&lt;script&gt;" in html_content
+    # Check required supervisor report elements
+    assert "Suggestions" in html_content
+    assert "Supervisor Signature:" in html_content
+    assert "Date:" in html_content
+    assert sha in html_content
+    assert "CementSight AI v1.3.0" in html_content
+    assert "Computer-vision screening estimate" in html_content or "screening" in html_content.lower()

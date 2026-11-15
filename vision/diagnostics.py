@@ -84,12 +84,18 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
     annotated_path = os.path.join(output_dir, "stage_07_final_annotated.jpg")
     report = inspect_corrosion(img, output_annotated_path=annotated_path, use_roi=True)
 
+    raw_px = int(cv2.countNonZero(raw_hsv_mask))
+    roi_px = int(cv2.countNonZero(roi_mask))
+    restricted_px = int(cv2.countNonZero(restricted_mask))
+    morph_px = int(cv2.countNonZero(morph_mask))
+    corrosion_px = report.get("corrosion_pixel_count", morph_px)
+
     stages = [
         {
             "stage_id": "original",
             "step": 1,
             "label": "Original Input Image",
-            "description": "Raw ingested BGR equipment image prior to processing.",
+            "description": "Raw ingested BGR equipment image prior to processing. [preprocessing view, not a correctness claim]",
             "image_url": orig_path,
             "result_type": "color_image"
         },
@@ -97,7 +103,7 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
             "stage_id": "blurred",
             "step": 2,
             "label": "Gaussian-Blurred Image",
-            "description": "Smoothed image using 5x5 Gaussian blur to suppress high-frequency texture noise.",
+            "description": "Smoothed image using 5x5 Gaussian blur to suppress high-frequency texture noise. [preprocessing view, not a correctness claim]",
             "image_url": blurred_path,
             "result_type": "color_image"
         },
@@ -105,7 +111,7 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
             "stage_id": "raw_hsv_mask",
             "step": 3,
             "label": "Raw HSV Corrosion Mask",
-            "description": "Initial color segmentation mask identifying rust and orange-brown tones in HSV space.",
+            "description": f"Initial color segmentation mask identifying rust and orange-brown tones in HSV space (Raw active pixels: {raw_px}). [preprocessing view, not a correctness claim]",
             "image_url": raw_mask_path,
             "result_type": "binary_mask"
         },
@@ -113,7 +119,7 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
             "stage_id": "roi_mask",
             "step": 4,
             "label": "Structural Foreground ROI Mask",
-            "description": "Classical Canny edge & morphological grouping mask isolating structural equipment boundaries.",
+            "description": f"Classical Canny edge & morphological grouping mask isolating structural equipment boundaries (ROI active pixels: {roi_px}). [preprocessing view, not a correctness claim]",
             "image_url": roi_path,
             "result_type": "binary_mask"
         },
@@ -121,7 +127,7 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
             "stage_id": "restricted_mask",
             "step": 5,
             "label": "ROI-Restricted Corrosion Mask",
-            "description": "Intersection of raw HSV rust mask and structural foreground ROI mask.",
+            "description": f"Intersection of raw HSV rust mask and structural foreground ROI mask (Restricted active pixels: {restricted_px}). [preprocessing view, not a correctness claim]",
             "image_url": restricted_path,
             "result_type": "binary_mask"
         },
@@ -129,7 +135,7 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
             "stage_id": "post_morph_mask",
             "step": 6,
             "label": "Post-Morphology Cleaned Mask",
-            "description": "Mask cleaned via morphological opening and closing to bridge fragmented corrosion spots.",
+            "description": f"Mask cleaned via morphological opening and closing to bridge fragmented corrosion spots (Cleaned mask pixels: {morph_px}). [preprocessing view, not a correctness claim]",
             "image_url": morph_path,
             "result_type": "binary_mask"
         },
@@ -137,7 +143,7 @@ def generate_diagnostic_stages(image_path_or_array: Union[str, np.ndarray], outp
             "stage_id": "annotated",
             "step": 7,
             "label": "Final Annotated Output",
-            "description": "Final inspection output with detected corrosion bounding boxes and severity rating.",
+            "description": f"Final inspection output with detected corrosion bounding boxes and severity rating (Corrosion pixels: {corrosion_px}).",
             "image_url": annotated_path,
             "result_type": "annotated_image"
         }
