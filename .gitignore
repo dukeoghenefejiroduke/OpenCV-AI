@@ -22,3 +22,4 @@ data/outputs/history_restored.json__pycache__/
 data/triage/
 data/field_feedback/
 data/simulation/*_restored.json
+data/outputs/
