@@ -79,7 +79,7 @@ Agent Decision Evaluation (agent/decision.py)
 Structured JSON / CLI / API Response
     │
     ▼
-Evaluation & Test Evidence (tools/evaluate.py & 34 automated tests)
+Evaluation & Test Evidence (tools/evaluate.py & automated test suite, run python -m pytest)
 ```
 
 ---
@@ -130,7 +130,7 @@ The agentic decision layer enforces strict safety invariants:
 
 ## 8. Reproducibility & Testing
 
-CementSight maintains 100% test coverage across 82 automated tests across 15 comprehensive test modules:
+CementSight maintains comprehensive test coverage across the automated test suite (run `python -m pytest`):
 - `tests/test_advanced_features.py` (Advanced degradation forecasting & digital twin tests)
 - `tests/test_agent_decision.py` (Agent decision unit & E2E tests)
 - `tests/test_cross_hazard_benchmark.py` (Cross-hazard benchmark tests)

@@ -303,7 +303,7 @@ Continuous integration is managed via GitHub Actions (`.github/workflows/build-l
 | :--- | :--- | :--- |
 | **OpenCV 5 Substantive Image Analysis** | `vision/inspection.py`, CI OpenCV 5 verification | Verified (CI Cloud Target) / 4.14 (Local) |
 | **AWS Component** | `lambda_handler.py`, `.github/workflows/build-lambda.yml` | Implemented & CI-Verified (Live Deployment Pending) |
-| **Reproducible Code** | `app/main.py`, `tools/evaluate.py`, tests | Fully Verified (34/34 Passing) |
+| **Reproducible Code** | `app/main.py`, `tools/evaluate.py`, tests | Fully Verified (Passing (run python -m pytest)) |
 | **Dependency Pinning** | `requirements.txt`, `requirements-lambda.txt` | Fully Pin-Verified |
 | **Test Suite** | `tests/` (4 test files) | 34 Passed, 0 Failed |
 | **Evaluation Evidence** | `tools/evaluate.py`, `data/outputs/evaluation_report.json` | Fully Generated |
@@ -358,7 +358,7 @@ Key demonstrated achievements include:
 - A working OpenCV vision inspection pipeline (screening aid; accuracy not validated) (`vision/inspection.py`).
 - A deterministic agent decision layer with mandatory human oversight (`agent/decision.py`).
 - Comprehensive pre-inspection input validation (`app/validation.py`).
-- A fully passing test suite (34/34 tests passing).
+- A fully passing test suite (run python -m pytest).
 - OpenCV 5 cloud-target verification via GitHub Actions CI.
 - Complete architectural documentation and reproducible evaluation harness.
 - *AWS live deployment pending account activation.*
