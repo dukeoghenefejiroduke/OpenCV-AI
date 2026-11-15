@@ -1,0 +1,29 @@
+
+==================================================================================================================================
+PHOTO              | TRUTH              | QUALITY VERDICT (REASONS)           | OLD CORR %  | NEW RUST %  | OLD FLAG | NEW FLAG
+==================================================================================================================================
+blue2.jpeg         | clean              | LOW_QUALITY                         | 0.00      % | 3.55      % | NO       | YES     
+blur.jpeg          | clean              | LOW_QUALITY                         | 0.00      % | 14.29     % | NO       | YES     
+clean.jpeg         | clean              | LOW_QUALITY                         | 0.00      % | 0.00      % | NO       | NO      
+clean2.jpeg        | clean              | LOW_QUALITY                         | 0.00      % | 0.00      % | NO       | NO      
+cluster 2.jpeg     | rust               | OK                                  | 0.00      % | 2.99      % | NO       | YES     
+cluster.jpeg       | rust               | OK                                  | 0.00      % | 32.76     % | NO       | YES     
+dark.jpeg          | rust_dim_light     | LOW_QUALITY                         | 0.19      % | 16.14     % | YES      | YES     
+dark2.jpeg         | rust_dim_light     | OK                                  | 6.01      % | 3.20      % | YES      | YES     
+joint.jpeg         | rust               | LOW_QUALITY                         | 2.81      % | 9.89      % | YES      | YES     
+joint2.jpeg        | rust               | LOW_QUALITY                         | 0.00      % | 20.19     % | NO       | YES     
+rust.jpeg          | rust               | OK                                  | 11.62     % | 17.83     % | YES      | YES     
+rust2.jpeg         | rust               | LOW_QUALITY                         | 0.00      % | 3.71      % | NO       | YES     
+==================================================================================================================================
+
+--- SUMMARY STATISTICS ---
+Total Rust Photos (truth == rust or rust_dim_light): 8
+  - Old Corrosion Detector Flagged: 4 / 8
+  - New Rust Detector Flagged     : 8 / 8
+Total Clean Photos (truth == clean)                  : 4
+  - Old Corrosion Detector Flagged (False Alarms)    : 0 / 4
+  - New Rust Detector Flagged (False Alarms)         : 2 / 4
+--------------------------
+
+[Dev Confusion] Summary report saved to data/outputs/dev_confusion_summary_20261114_181754.json
+

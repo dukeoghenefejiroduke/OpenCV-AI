@@ -18,7 +18,7 @@ class ImageQualityGate:
     TARGET_LONG_SIDE: int = 640              # Standardized resolution for invariant metric computation
     BLUR_LAPLACIAN_THRESHOLD: float = 80.0   # Below 80 indicates excessive blur/loss of high-frequency detail at 640p
     EXPOSURE_MIN_MEAN: float = 25.0          # Below 25 indicates severe under-exposure (too dark)
-    EXPOSURE_MAX_MEAN: float = 230.0         # Above 230 indicates severe over-exposure (washed out)
+    EXPOSURE_MAX_MEAN: float = 248.0         # Above 248 indicates severe over-exposure (washed out)
     DARK_PIXEL_THRESHOLD: int = 30           # Value threshold for very dark pixels
     DARK_PIXEL_MAX_SHARE: float = 0.35       # Max 35% very dark pixels before flagging extreme darkness
     BLOWN_VALUE_THRESHOLD: int = 250         # High value (V >= 250) for blown highlights
@@ -94,6 +94,7 @@ class ImageQualityGate:
         has_low_contrast = contrast_std < self.CONTRAST_MIN_STD
 
         reasons = []
+        advisory_notes = []
         if is_blurry:
             reasons.append(f"Image is blurry (Laplacian variance {laplacian_var:.1f} < {self.BLUR_LAPLACIAN_THRESHOLD}).")
         if is_under_exposed or is_extremely_dark:
@@ -101,7 +102,10 @@ class ImageQualityGate:
         if is_over_exposed:
             reasons.append(f"Image is over-exposed (mean intensity {mean_intensity:.1f} > {self.EXPOSURE_MAX_MEAN}).")
         if has_blown_highlights:
-            reasons.append(f"Excessive blown highlights / specular glare detected ({blown_fraction * 100:.1f}% > {self.BLOWN_MAX_FRACTION * 100}% in compact blobs).")
+            if blown_fraction > 0.25 and (contrast_std < 12.0 or laplacian_var < 40.0):
+                reasons.append(f"Excessive blown highlights and loss of texture ({blown_fraction * 100:.1f}% clipped area, contrast std {contrast_std:.1f}).")
+            else:
+                advisory_notes.append(f"Advisory: Blown highlights detected ({blown_fraction * 100:.1f}% in compact blobs).")
         if has_low_contrast:
             reasons.append(f"Low image contrast (grayscale std {contrast_std:.1f} < {self.CONTRAST_MIN_STD}).")
 
@@ -111,6 +115,7 @@ class ImageQualityGate:
         return {
             "verdict": verdict,
             "reasons": reasons,
+            "advisory_notes": advisory_notes,
             "recommendation": recommendation,
             "metrics": {
                 "laplacian_variance": round(laplacian_var, 2),
