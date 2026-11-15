@@ -1,0 +1,135 @@
+{
+  "timestamp": "20261115_122817",
+  "photos_dir": "/data/data/com.termux/files/home/storage/downloads/testphotos2",
+  "truth_csv": "data/heldout_truth.csv",
+  "summary": {
+    "rust_total": 4,
+    "rust_old_flagged": 3,
+    "rust_new_flagged": 4,
+    "clean_total": 8,
+    "clean_old_flagged": 6,
+    "clean_new_flagged": 8
+  },
+  "results": [
+    {
+      "file": "Brown Wood1.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 3.06,
+      "new_rust_percentage": 0.465,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Brown Wood2.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 39.13,
+      "new_rust_percentage": 3.694,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Orange1.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 2.4,
+      "new_rust_percentage": 30.851,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Orange2.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 1.44,
+      "new_rust_percentage": 48.654,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Red Brick1.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 46.18,
+      "new_rust_percentage": 39.178,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Red Brick2.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 61.65,
+      "new_rust_percentage": 40.576,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Rust in Shadow1.jpg",
+      "truth": "rust",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 0.19,
+      "new_rust_percentage": 19.394,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Rust in Shadow2.jpg",
+      "truth": "rust",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 21.26,
+      "new_rust_percentage": 4.325,
+      "old_flagged": true,
+      "new_flagged": true
+    },
+    {
+      "file": "Silver1.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 0.0,
+      "new_rust_percentage": 5.324,
+      "old_flagged": false,
+      "new_flagged": true
+    },
+    {
+      "file": "Silver2.jpg",
+      "truth": "clean",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 0.0,
+      "new_rust_percentage": 18.684,
+      "old_flagged": false,
+      "new_flagged": true
+    },
+    {
+      "file": "Thin Corrosion1.jpg",
+      "truth": "rust",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 0.0,
+      "new_rust_percentage": 6.36,
+      "old_flagged": false,
+      "new_flagged": true
+    },
+    {
+      "file": "Thin Corrosion2.jpg",
+      "truth": "rust",
+      "quality_verdict": "OK",
+      "quality_reasons": [],
+      "old_corrosion_percentage": 21.92,
+      "new_rust_percentage": 24.144,
+      "old_flagged": true,
+      "new_flagged": true
+    }
+  ]
+}
