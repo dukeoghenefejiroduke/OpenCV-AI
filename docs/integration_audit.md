@@ -74,7 +74,7 @@ Rather than building a parallel application, existing modules will be extended i
 ---
 
 ## 7. Phased Roadmap
-- **Phase 0:** Baseline regression guard & test suite validation (`131 tests` passing).
+- **Phase 0:** Baseline regression guard & test suite validation (`Automated test suite (run python -m pytest)` passing).
 - **Phase 1:** Telemetry schema with mandatory provenance (`telemetry/`).
 - **Phase 2:** Seeded simulator with held-out scenario splitting.
 - **Phase 3:** Transparent anomaly detectors (Z-score, EWMA, CUSUM) with false-alarm and delay benchmarks.
@@ -91,4 +91,4 @@ Rather than building a parallel application, existing modules will be extended i
 - **Corrosion Golden Values:** Assert corrosion detector outputs exactly 6.56% / 11 regions / WARNING on reference image `data/pipe_corrosion.jpg`.
 - **API Snapshot Tests:** Validate response structures of all endpoints.
 - **Offline & XSS Tests:** Verify zero CDN dependencies and XSS sanitization (`html.escape`).
-- **Test Execution Count:** Full test suite run (`python -m pytest`) collects and passes **131 tests** successfully.
+- **Test Execution Count:** Full test suite run (`python -m pytest`) collects and passes **Automated test suite (run python -m pytest)** successfully.

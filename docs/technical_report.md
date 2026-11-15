@@ -219,7 +219,7 @@ All tests executed via `PYTHONPATH=. python -m pytest` pass successfully (82 tot
 | `tests/test_safety_isolation.py` | Safety isolation verification | PASSED |
 | `tests/test_surface_defect_detector.py` | Surface defect & spalling screening | PASSED |
 | `tests/test_validation.py` | Input safety validation layer | PASSED |
-| **Total Test Suite** | **82 Tests across 15 Modules** | **PASSED** |
+| **Total Test Suite** | **Automated test suite (run python -m pytest)** | **PASSED** |
 
 ### Key Behavioral Findings
 - Tiny `32x32` images are correctly rejected as `INPUT_REJECTED / UNSUITABLE`.
