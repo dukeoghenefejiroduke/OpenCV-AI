@@ -2,11 +2,63 @@ import cv2
 import numpy as np
 
 
+def merge_overlapping_boxes(boxes, iou_thresh=0.05, proximity_thresh=30):
+    """Iteratively merges overlapping or close bounding boxes [x, y, w, h] using RETR_EXTERNAL and IoU/proximity."""
+    if not boxes:
+        return []
+    
+    def compute_box_iou(b1, b2):
+        x1, y1, w1, h1 = b1
+        x2, y2, w2, h2 = b2
+        ax1, ay1, ax2, ay2 = x1, y1, x1 + w1, y1 + h1
+        bx1, by1, bx2, by2 = x2, y2, x2 + w2, y2 + h2
+        ix1 = max(ax1, bx1)
+        iy1 = max(ay1, by1)
+        ix2 = min(ax2, bx2)
+        iy2 = min(ay2, by2)
+        iw = max(0.0, ix2 - ix1)
+        ih = max(0.0, iy2 - iy1)
+        inter = iw * ih
+        union = (w1 * h1) + (w2 * h2) - inter
+        return inter / union if union > 0 else 0.0
+
+    changed = True
+    while changed:
+        changed = False
+        new_boxes = []
+        merged_flags = [False] * len(boxes)
+        for i in range(len(boxes)):
+            if merged_flags[i]:
+                continue
+            curr = boxes[i]
+            x1, y1, w1, h1 = curr
+            for j in range(i + 1, len(boxes)):
+                if merged_flags[j]:
+                    continue
+                other = boxes[j]
+                x2, y2, w2, h2 = other
+                iou = compute_box_iou(curr, other)
+                dist_x = abs((x1 + w1/2) - (x2 + w2/2))
+                dist_y = abs((y1 + h1/2) - (y2 + h2/2))
+                if iou > iou_thresh or (dist_x < (w1 + w2)/2 + proximity_thresh and dist_y < (h1 + h2)/2 + proximity_thresh):
+                    nx = min(x1, x2)
+                    ny = min(y1, y2)
+                    nw = max(x1 + w1, x2 + w2) - nx
+                    nh = max(y1 + h1, y2 + h2) - ny
+                    curr = [nx, ny, nw, nh]
+                    x1, y1, w1, h1 = curr
+                    merged_flags[j] = True
+                    changed = True
+            new_boxes.append(curr)
+        boxes = new_boxes
+    return [tuple(b) for b in boxes]
+
+
 def compute_foreground_roi_mask(img, output_roi_path=None):
     """Computes a classical OpenCV foreground ROI mask based on structural edges,
 
-    gradients, and morphological grouping of equipment/pipe boundaries.
-    Includes safeguards against full-frame, tiny contours, and low-extent hollow blobs.
+    texture variance (high Laplacian variance outside Canny contours to capture valid rust on lower pipe shafts),
+    and morphological grouping. Safeguards against ROI wipeout (ensures adequate coverage).
     """
     height, width = img.shape[:2]
     total_pixels = height * width
@@ -15,20 +67,28 @@ def compute_foreground_roi_mask(img, output_roi_path=None):
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
     # Canny edge detection for structural equipment/pipe edges
-    edges = cv2.Canny(blurred, 50, 150)
+    edges = cv2.Canny(blurred, 40, 140)
+
+    # Local texture variance / Laplacian gradient magnitude to capture textured rust/equipment outside Canny edges
+    lap = cv2.Laplacian(gray, cv2.CV_32F)
+    grad_mag = cv2.convertScaleAbs(lap)
+    grad_norm = cv2.normalize(grad_mag, None, 0, 255, cv2.NORM_MINMAX)
+    texture_roi = (grad_norm > 8).astype(np.uint8) * 255
+
+    combined_edges = cv2.bitwise_or(edges, texture_roi)
 
     # Morphological operations to group structural edges into solid foreground equipment regions
-    close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
-    dilate_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+    dilate_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
 
-    closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, close_kernel)
-    dilated = cv2.dilate(closed, dilate_kernel, iterations=1)
+    closed = cv2.morphologyEx(combined_edges, cv2.MORPH_CLOSE, close_kernel)
+    dilated = cv2.dilate(closed, dilate_kernel, iterations=2)
 
-    # Find external contours of structural equipment regions
+    # Find external contours using cv2.RETR_EXTERNAL
     contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     roi_mask = np.zeros((height, width), dtype=np.uint8)
-    min_roi_area = int(total_pixels * 0.001)  # Reject tiny components (<0.1% of image)
+    min_roi_area = int(total_pixels * 0.0005)  
 
     roi_components_total = 0
     roi_rejection_audit = []
@@ -41,31 +101,17 @@ def compute_foreground_roi_mask(img, output_roi_path=None):
         x, y, w, h = cv2.boundingRect(cnt)
         roi_components_total += 1
 
-        # Safeguard: Reject contours that span essentially the entire frame (giant frame rejection)
         is_frame_spanning = (
-            (w >= 0.85 * width and h >= 0.85 * height) or
-            (area > 0.70 * total_pixels)
+            (w >= 0.90 * width and h >= 0.90 * height) or
+            (area > 0.80 * total_pixels)
         )
         if is_frame_spanning:
             continue
 
-        # Extent / fill-ratio filter: extent = contour_area / bounding_box_area
-        bb_area = float(w * h)
-        extent = float(area) / bb_area if bb_area > 0 else 0.0
-
-        if extent < 0.15:
-            roi_rejection_audit.append({
-                "box": (int(x), int(y), int(w), int(h)),
-                "extent": round(extent, 3),
-                "area": area
-            })
-            continue
-
-        # Draw valid equipment ROI component onto mask
         cv2.drawContours(roi_mask, [cnt], -1, 255, -1)
 
-    # Fallback for synthetic plain images where edge density might be low
-    if np.sum(roi_mask > 0) == 0:
+    # Safeguard against ROI wipeout: if ROI coverage < 20%, fallback to full frame or dilated mask
+    if np.sum(roi_mask > 0) < int(total_pixels * 0.20):
         roi_mask.fill(255)
 
     if output_roi_path is not None:
@@ -120,6 +166,19 @@ def inspect_corrosion(image_path_or_array, output_annotated_path=None, output_ro
     upper_rust = np.array([25, 255, 255], dtype=np.uint8)
 
     raw_hsv_mask = cv2.inRange(hsv, lower_rust, upper_rust)
+
+    # Expand rust mask to include specular glare / dark rust / corroded hex heads:
+    # High texture (Laplacian variance above threshold) + warm CIELAB values (a* > 130 or b* > 135) even when V > 180 and S is low.
+    gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+    lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
+    lap = cv2.Laplacian(gray, cv2.CV_32F)
+    grad_mag = cv2.convertScaleAbs(lap)
+    
+    # Warm CIELAB & high texture + high value (specular glare rust)
+    specular_glare_rust_mask = ((grad_mag > 6) & ((a_channel > 130) | (b_channel > 135)) & (hsv[:, :, 2] > 180)).astype(np.uint8) * 255
+    raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, specular_glare_rust_mask)
+
     raw_hsv_mask_pixels = int(np.sum(raw_hsv_mask > 0))
     raw_hsv_mask_percentage = (raw_hsv_mask_pixels / total_pixels) * 100.0
 
@@ -173,12 +232,15 @@ def inspect_corrosion(image_path_or_array, output_annotated_path=None, output_ro
         (corrosion_pixels / total_pixels) * 100.0 if total_pixels > 0 else 0.0
     )
 
-    bounding_boxes = []
-    annotated_img = img.copy()
-
+    raw_bounding_boxes = []
     for cnt in valid_contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        bounding_boxes.append((int(x), int(y), int(w), int(h)))
+        raw_bounding_boxes.append((int(x), int(y), int(w), int(h)))
+
+    bounding_boxes = merge_overlapping_boxes(raw_bounding_boxes)
+    annotated_img = img.copy()
+
+    for (x, y, w, h) in bounding_boxes:
         cv2.rectangle(annotated_img, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
     region_count = len(bounding_boxes)

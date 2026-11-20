@@ -130,6 +130,14 @@ class RustDetector(BaseDetector):
 
             combined_mask = (absolute_mask & adaptive_lab_mask & adaptive_hsv_mask).astype(np.uint8) * 255
 
+            # Restrict to foreground asset ROI if available
+            try:
+                from vision.inspection import compute_foreground_roi_mask
+                roi_mask, _, _ = compute_foreground_roi_mask(decoded_img)
+                combined_mask = cv2.bitwise_and(combined_mask, roi_mask)
+            except Exception:
+                pass
+
             # 4. Morphology: Close before Open
             close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
             open_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -139,7 +147,7 @@ class RustDetector(BaseDetector):
             # 5. Connected components / Contours with relative area filtering, roughness & shape stats
             contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             min_area_pixels = max(15, int(0.0002 * total_pixels))
-            max_area_pixels = int(0.6 * total_pixels)
+            max_area_pixels = int(0.15 * total_pixels)
 
             gray_full = cv2.cvtColor(decoded_img, cv2.COLOR_BGR2GRAY)
             findings = []

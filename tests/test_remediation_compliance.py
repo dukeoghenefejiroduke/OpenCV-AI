@@ -77,27 +77,28 @@ def test_feedback_loop_persistence():
 def test_concurrency_semaphore_limit():
     """Test that _inspection_semaphore restricts concurrent acquisitions to MAX_CONCURRENT_INSPECTIONS (5)."""
     assert MAX_CONCURRENT_INSPECTIONS == 5
-    # Verify semaphore behavior
-    acquired_count = 0
+    max_concurrent = 0
+    current_concurrent = 0
     lock = threading.Lock()
 
-    def try_acquire():
-        nonlocal acquired_count
-        if _inspection_semaphore.acquire(blocking=False):
-            try:
-                with lock:
-                    acquired_count += 1
-                time.sleep(0.1)
-            finally:
-                _inspection_semaphore.release()
+    def worker():
+        nonlocal max_concurrent, current_concurrent
+        with _inspection_semaphore:
+            with lock:
+                current_concurrent += 1
+                if current_concurrent > max_concurrent:
+                    max_concurrent = current_concurrent
+            time.sleep(0.05)
+            with lock:
+                current_concurrent -= 1
 
-    threads = [threading.Thread(target=try_acquire) for _ in range(10)]
+    threads = [threading.Thread(target=worker) for _ in range(20)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
 
-    assert acquired_count <= 5
+    assert max_concurrent <= 5
 
 
 def test_data_outputs_isolation():

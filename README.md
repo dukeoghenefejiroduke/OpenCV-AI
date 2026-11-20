@@ -123,7 +123,7 @@ Evaluated against the real industrial test image (`data/pipe_corrosion.jpg`):
 | **Proposed action** | Routine maintenance inspection and ongoing monitoring |
 | **Approval required** | `No` |
 
-**Test Suite Summary:** `118/118` tests passed successfully across all inspection, agent, multi-hazard, quality gate, robustness, and validation suites.
+**Test Suite Summary:** `208/208` automated tests passed successfully across all inspection, agent, multi-hazard, quality gate, robustness, workspace, security, and validation suites.
 
 ---
 

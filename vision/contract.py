@@ -20,8 +20,10 @@ CATEGORY_CORROSION = "corrosion"
 CATEGORY_CRACK = "crack"
 CATEGORY_SPALLING = "spalling"
 CATEGORY_COATING_DAMAGE = "coating_damage"
+CATEGORY_COATING = CATEGORY_COATING_DAMAGE
 CATEGORY_LEAKAGE = "leakage"
 CATEGORY_INSULATION_DAMAGE = "insulation_damage"
+CATEGORY_INSULATION = CATEGORY_INSULATION_DAMAGE
 
 
 def validate_finding(finding: Dict[str, Any], image_shape: Optional[Tuple[int, int]] = None) -> Tuple[bool, str]:

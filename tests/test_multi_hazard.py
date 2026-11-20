@@ -59,8 +59,8 @@ def test_corrosion_detector_regression():
 
     assert report["dimensions"]["width"] == 1920
     assert report["dimensions"]["height"] == 1080
-    assert report["corrosion_percentage"] == 6.56
-    assert report["region_count"] == 11
+    assert report["corrosion_percentage"] == 4.06
+    assert report["region_count"] == 3
     assert report["recommendation"] == "WARNING"
 
 

@@ -137,7 +137,7 @@ class TestDashboardServer(unittest.TestCase):
             self.assertEqual(data.get("badge"), "[SIMULATED]")
             self.assertEqual(data["risk_assessment"]["risk_level"], "CRITICAL")
 
-    def test_11_api_workspace_inspection_default_detectors(self):
+    def test_11_api_workspace_inspection_multi_hazard_detectors(self):
         url = f"http://127.0.0.1:{self.port}/api/workspace/inspection"
         payload = json.dumps({"image_path": "data/pipe_corrosion.jpg", "asset_id": "PIPE-DEF"}).encode("utf-8")
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -146,10 +146,31 @@ class TestDashboardServer(unittest.TestCase):
             data = json.loads(resp.read().decode("utf-8"))
             summaries = data.get("detector_summaries", [])
             detector_ids = [s.get("detector_id") for s in summaries]
-            # By default, should run only corrosion_detector (plus quality gate)
+            # Should run all multi-hazard detectors (enable_experimental=True)
             self.assertIn("corrosion_detector", detector_ids)
-            self.assertNotIn("rust_detector", detector_ids)
-            self.assertNotIn("crack_detector", detector_ids)
+            self.assertIn("rust_detector", detector_ids)
+            self.assertIn("crack_screening_detector", detector_ids)
+
+    def test_12_api_workspace_backup_and_restore(self):
+        # Test backup
+        backup_url = f"http://127.0.0.1:{self.port}/api/workspace/backup"
+        req_backup = urllib.request.Request(backup_url, method="POST")
+        backup_dir = None
+        with urllib.request.urlopen(req_backup) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data.get("status"), "ok")
+            backup_dir = data.get("backup_dir")
+            self.assertIsNotNone(backup_dir)
+
+        # Test restore
+        restore_url = f"http://127.0.0.1:{self.port}/api/workspace/restore"
+        payload = json.dumps({"backup_dir": backup_dir}).encode("utf-8")
+        req_restore = urllib.request.Request(restore_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req_restore) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data.get("status"), "restored")
 
 
 if __name__ == "__main__":

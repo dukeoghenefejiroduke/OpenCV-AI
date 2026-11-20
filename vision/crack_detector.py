@@ -94,6 +94,14 @@ class CrackDetector(BaseDetector):
             _, bh_thresh = cv2.threshold(blackhat, 30, 255, cv2.THRESH_BINARY)
             combined = cv2.bitwise_or(edges, bh_thresh)
 
+            # Restrict to foreground asset ROI if available
+            try:
+                from vision.inspection import compute_foreground_roi_mask
+                roi_mask, _, _ = compute_foreground_roi_mask(decoded_img)
+                combined = cv2.bitwise_and(combined, roi_mask)
+            except Exception:
+                pass
+
             close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
             closed_edges = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, close_kernel)
 

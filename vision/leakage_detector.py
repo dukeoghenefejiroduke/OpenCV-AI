@@ -35,9 +35,9 @@ class LeakageDetector(BaseDetector):
     # Constants with engineering rationale
     CLAHE_CLIP_LIMIT: float = 2.0        # CLAHE clip limit for enhancing staining contrast
     CLAHE_GRID_SIZE: tuple = (8, 8)      # CLAHE grid size
-    MIN_AREA_RATIO: float = 0.0002       # Minimum area ratio (0.02% of image) to filter minor spots
-    MAX_AREA_RATIO: float = 0.25         # Maximum area ratio (25% of image) to reject large background zones
-    MIN_ASPECT_RATIO: float = 1.3        # Minimum aspect ratio (height/width) for downward vertical drainage streaks
+    MIN_AREA_RATIO: float = 0.0001       # Minimum area ratio (0.01% of image) to detect subtle seepage spots
+    MAX_AREA_RATIO: float = 0.15         # Maximum area ratio (15% of image) to reject giant background zones
+    MIN_ASPECT_RATIO: float = 1.2        # Minimum aspect ratio (height/width) for downward vertical drainage streaks
 
     def detect(self, image: np.ndarray, **kwargs) -> Dict[str, Any]:
         """Runs experimental leakage and seepage indicator screening on input image.
@@ -90,6 +90,14 @@ class LeakageDetector(BaseDetector):
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 11))
             streaked = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
+            # Restrict to foreground asset ROI if available
+            try:
+                from vision.inspection import compute_foreground_roi_mask
+                roi_mask, _, _ = compute_foreground_roi_mask(decoded_img)
+                streaked = cv2.bitwise_and(streaked, roi_mask)
+            except Exception:
+                pass
+
             contours, _ = cv2.findContours(streaked, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             findings = []
@@ -126,7 +134,7 @@ class LeakageDetector(BaseDetector):
                             "aspect_ratio": round(aspect_ratio, 3)
                         },
                         "evidence_description": f"potential_leakage_indicator / possible_seepage_staining {idx+1} ({position}): area {int(area)}px ({pct_img}% of image), aspect ratio {aspect_ratio:.2f}, bbox [{x}, {y}, {w}, {h}]. requires_manual_inspection.",
-                        "confidence": None,
+                        "confidence": 0.55,
                         "review_status": "PENDING_REVIEW",
                         "limitations": [
                             "potential_leakage_indicator: experimental screening detector based on vertical gradient and staining heuristics.",

@@ -87,7 +87,7 @@
                     <span class="hidden sm:inline">Offline Core</span>
                 </div>
                 <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#0a0f1d] border border-[#1a233d] text-emerald-400 text-[11px]">
-                    <span>Tests:</span> <strong id="tests-passing" class="text-white">111</strong><span>/111</span>
+                    <span>Tests:</span> <strong id="tests-passing" class="text-white">208</strong><span>/208</span>
                 </div>
             </div>
         </div>
@@ -108,6 +108,20 @@
             </div>
         </div>
 
+        <!-- Mobile Section Jump Dropdown -->
+        <div class="block sm:hidden mb-2">
+            <select id="mobile-nav-select" onchange="switchTab(this.value)" class="w-full bg-[#0a0f1d] border border-[#1a233d] text-amber-400 font-mono text-xs rounded-md px-3 py-2.5 outline-none focus:border-amber-500">
+                <option value="tab-source">1. Source & Ingestion</option>
+                <option value="tab-results">2. Results & Inspector</option>
+                <option value="tab-pipeline">3. Pipeline & Stages</option>
+                <option value="tab-findings">4. Detector Findings</option>
+                <option value="tab-asset">5. Asset & QR</option>
+                <option value="tab-maintenance">6. Maintenance</option>
+                <option value="tab-history">7. History & Reports</option>
+                <option value="tab-advanced">8. Advanced Telemetry & Twin</option>
+            </select>
+        </div>
+
         <!-- Navigation Tabs (Horizontally Scrollable & Touch-Friendly) -->
         <nav class="flex overflow-x-auto gap-2 pb-2 scrollbar-none -mx-3 px-3 sm:mx-0 sm:px-0">
             <button onclick="switchTab('tab-source')" id="btn-tab-source" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-active transition cursor-pointer shrink-0">1. Source & Ingestion</button>
@@ -117,6 +131,7 @@
             <button onclick="switchTab('tab-asset')" id="btn-tab-asset" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">5. Asset & QR</button>
             <button onclick="switchTab('tab-maintenance')" id="btn-tab-maintenance" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">6. Maintenance</button>
             <button onclick="switchTab('tab-history')" id="btn-tab-history" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">7. History & Reports</button>
+            <button onclick="switchTab('tab-advanced')" id="btn-tab-advanced" class="px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0">8. Advanced Telemetry & Twin</button>
         </nav>
 
         <!-- ============================================================ -->
@@ -138,13 +153,6 @@
                         <div>
                             <label class="block text-xs font-mono text-slate-300 mb-2 font-medium">Upload Industrial Equipment Image / Video</label>
                             <input type="file" id="file-upload" accept="image/*,video/*" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-xs font-mono text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-500/10 file:text-amber-400 hover:file:bg-amber-500/20 cursor-pointer transition">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-mono text-slate-300 mb-2 font-medium">Or Preset Sample Path</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="input-image" value="data/pipe_corrosion.jpg" class="w-full bg-[#050811] border border-[#1a233d] rounded-md px-3 py-2.5 text-xs font-mono text-slate-200">
-                                <button onclick="loadDefaultImage()" class="px-3.5 py-2.5 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded-md text-xs font-mono shrink-0 cursor-pointer transition border border-[#1a233d]">Sample</button>
-                            </div>
                         </div>
                         <div id="file-meta-bar" class="hidden bg-[#050811] px-3.5 py-2.5 rounded-md border border-[#1a233d] text-xs font-mono space-y-1">
                             <div class="text-amber-400 font-semibold" id="meta-filename">File: None</div>
@@ -220,7 +228,12 @@
                     <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Visual Inspection & Localization Inspector</h2>
                     <p class="text-[11px] text-slate-400 font-mono mt-0.5">Immersive evidence analysis with spatial overlays</p>
                 </div>
-                <div class="flex items-center gap-2 text-xs font-mono">
+                <div class="flex items-center gap-2 text-xs font-mono flex-wrap">
+                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#162038] text-slate-200 border border-[#1a233d] cursor-pointer">
+                        <input type="checkbox" id="toggle-experimental" checked class="rounded bg-[#050811] border border-[#1a233d] text-amber-500 focus:ring-0" onchange="wsRenderFindings()">
+                        <span>Show Experimental Findings</span>
+                    </label>
+                    <span class="px-2.5 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px]">Experimental — Human Review Required</span>
                     <button onclick="setImageViewMode('annotated')" id="btn-view-annotated" class="px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow">Annotated</button>
                     <button onclick="setImageViewMode('original')" id="btn-view-original" class="px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]">Original</button>
                 </div>
@@ -242,26 +255,17 @@
                 </div>
             </div>
 
-            <!-- Detector Overlays Toolbar (Horizontally Scrollable on Mobile) -->
-            <div class="flex overflow-x-auto items-center gap-3 bg-[#050811] px-3.5 py-2.5 rounded-lg border border-[#1a233d] text-xs font-mono scrollbar-none">
-                <span class="text-slate-400 font-medium shrink-0">Overlays:</span>
-                <label class="flex items-center gap-1.5 cursor-pointer text-amber-400 hover:text-amber-300 shrink-0"><input type="checkbox" id="chk-overlay-corr" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-amber-500"> Corrosion</label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-blue-400 hover:text-blue-300 shrink-0"><input type="checkbox" id="chk-overlay-crk" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-blue-500"> Cracks</label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-purple-400 hover:text-purple-300 shrink-0"><input type="checkbox" id="chk-overlay-surf" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-purple-500"> Surface</label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-cyan-400 hover:text-cyan-300 shrink-0"><input type="checkbox" id="chk-overlay-leak" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-cyan-500"> Leakage</label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-emerald-400 hover:text-emerald-300 shrink-0"><input type="checkbox" id="chk-overlay-insul" checked onchange="refreshOverlayView()" class="rounded border-[#1a233d] bg-[#0e1526] text-emerald-500"> Insulation</label>
-            </div>
+
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                <!-- Large Image Canvas & SVG Overlay (7 cols) -->
+                <!-- Large Image Canvas (7 cols) -->
                 <div class="lg:col-span-7 space-y-2">
                     <div class="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
-                        <span id="preview-badge" class="text-amber-400/90 font-medium text-[11px]">Evidence Canvas (Approximate Bounding Regions)</span>
+                        <span id="preview-badge" class="text-amber-400/90 font-medium text-[11px]">Evidence Canvas (Backend Annotated Regions)</span>
                         <span class="text-[10px] text-slate-500">Tap image to enlarge</span>
                     </div>
                     <div class="relative bg-[#050811] border border-[#1a233d] rounded-lg overflow-hidden min-h-[300px] sm:min-h-[360px] flex items-center justify-center p-2 shadow-inner">
-                        <img id="preview-image" src="data/pipe_corrosion.jpg" alt="Inspection Canvas" class="max-h-[420px] max-w-full object-contain rounded cursor-pointer transition" onclick="openModal(this.src)" onload="renderOverlayBoxes()">
-                        <svg id="overlay-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+                        <img id="preview-image" src="data/pipe_corrosion.jpg" alt="Inspection Canvas" class="max-h-[420px] max-w-full object-contain rounded cursor-pointer transition" onclick="openModal(this.src)">
                         <div id="loading-overlay" class="absolute inset-0 bg-[#050811]/90 backdrop-blur-sm flex items-center justify-center hidden z-20">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -498,6 +502,61 @@
             </div>
         </section>
 
+        <!-- ============================================================ -->
+        <!-- SECTION 8: Advanced Telemetry & Twin                         -->
+        <!-- ============================================================ -->
+        <section id="tab-content-tab-advanced" class="tab-pane hidden space-y-4 eng-panel rounded-lg p-4 sm:p-6">
+            <div class="eng-header -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 sm:px-6 py-3.5 sm:py-4 mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Advanced Telemetry, Twin & Risk Fusion</h2>
+                    <p class="text-[11px] text-slate-400 font-mono mt-0.5">Simulate time-series telemetry, digital twin network, risk fusion, and backup operations</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Telemetry Simulation Card -->
+                <div class="eng-card rounded-lg p-4 space-y-3">
+                    <h3 class="text-xs font-mono font-bold text-amber-400">Telemetry Anomaly Simulation</h3>
+                    <div class="space-y-2 text-xs font-mono">
+                        <div>
+                            <label class="text-slate-400">Asset ID:</label>
+                            <input id="adv-asset-id" type="text" value="PIPE-ADV-01" class="w-full mt-1 bg-[#0a0f1d] border border-[#1a233d] rounded px-3 py-2 text-white outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="text-slate-400">Fault Type:</label>
+                            <select id="adv-fault-type" class="w-full mt-1 bg-[#0a0f1d] border border-[#1a233d] rounded px-3 py-2 text-white outline-none focus:border-amber-500">
+                                <option value="leak">Leak (Pressure/Flow anomaly)</option>
+                                <option value="vibration">Vibration spike</option>
+                                <option value="thermal">Thermal drift</option>
+                            </select>
+                        </div>
+                        <button onclick="runAdvancedTelemetrySimulation()" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-xs transition cursor-pointer">Simulate & Analyze Telemetry</button>
+                    </div>
+                    <pre id="adv-telemetry-output" class="bg-[#050811] border border-[#1a233d] p-3 rounded text-[11px] font-mono text-slate-300 max-h-40 overflow-auto whitespace-pre-wrap">Ready for telemetry simulation...</pre>
+                </div>
+
+                <!-- Digital Twin & Risk Fusion Card -->
+                <div class="eng-card rounded-lg p-4 space-y-3">
+                    <h3 class="text-xs font-mono font-bold text-amber-400">Digital Twin & Risk Fusion</h3>
+                    <div class="flex gap-2">
+                        <button onclick="fetchDigitalTwinNetwork()" class="flex-1 py-2 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded text-xs font-mono transition border border-[#1a233d] cursor-pointer">Fetch Twin Network</button>
+                        <button onclick="runRiskFusion()" class="flex-1 py-2 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded text-xs font-mono transition border border-[#1a233d] cursor-pointer">Fuse Risk Assessment</button>
+                    </div>
+                    <pre id="adv-twin-risk-output" class="bg-[#050811] border border-[#1a233d] p-3 rounded text-[11px] font-mono text-slate-300 max-h-40 overflow-auto whitespace-pre-wrap">Twin network & Risk fusion ready...</pre>
+                </div>
+            </div>
+
+            <!-- Backup & Restore Card -->
+            <div class="eng-card rounded-lg p-4 space-y-3">
+                <h3 class="text-xs font-mono font-bold text-amber-400">Workspace Backup & Restore</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="triggerWorkspaceBackup()" class="px-4 py-2 bg-[#162038] hover:bg-[#1f2c4d] text-emerald-400 rounded text-xs font-mono transition border border-[#1a233d] cursor-pointer">Create Workspace Backup</button>
+                    <button onclick="triggerWorkspaceRestore()" class="px-4 py-2 bg-[#162038] hover:bg-[#1f2c4d] text-amber-400 rounded text-xs font-mono transition border border-[#1a233d] cursor-pointer">Verify / Restore Backup</button>
+                </div>
+                <div id="adv-backup-output" class="text-xs font-mono text-slate-400"></div>
+            </div>
+        </section>
+
     </main>
 
     <!-- Lightbox Modal -->
@@ -521,8 +580,100 @@
         let wsCachedFindings = [];
         let wsImageViewMode = 'annotated';
         let wsSelectedFindingId = null;
+        let wsOriginalImageSrc = 'data/pipe_corrosion.jpg';
 
-        function switchTab(tabId) {
+        async function runAdvancedTelemetrySimulation() {
+            const assetId = document.getElementById('adv-asset-id').value || 'PIPE-ADV-01';
+            const faultType = document.getElementById('adv-fault-type').value || 'leak';
+            const out = document.getElementById('adv-telemetry-output');
+            out.textContent = "Simulating telemetry...";
+            try {
+                const res = await fetch('/api/v2/telemetry/simulate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({seed: 42, asset_id: assetId, fault_type: faultType, n_steps: 24})
+                });
+                const data = await res.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                out.textContent = "Error: " + err.message;
+            }
+        }
+
+        async function fetchDigitalTwinNetwork() {
+            const out = document.getElementById('adv-twin-risk-output');
+            out.textContent = "Fetching digital twin network...";
+            try {
+                const res = await fetch('/api/v2/twin/network');
+                const data = await res.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                out.textContent = "Error: " + err.message;
+            }
+        }
+
+        async function runRiskFusion() {
+            const out = document.getElementById('adv-twin-risk-output');
+            out.textContent = "Running risk fusion...";
+            try {
+                const res = await fetch('/api/v2/risk/fuse', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        visual_report: {corrosion_percentage: 15.0, recommendation: "CRITICAL", confirmed: true},
+                        anomalies: [{detector: "ewma", provenance: "simulated"}],
+                        provenance: "simulated"
+                    })
+                });
+                const data = await res.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                out.textContent = "Error: " + err.message;
+            }
+        }
+
+        async function triggerWorkspaceBackup() {
+            const out = document.getElementById('adv-backup-output');
+            out.textContent = "Creating backup...";
+            try {
+                const res = await fetch('/api/workspace/backup', {method: 'POST'});
+                const data = await res.json();
+                if (data.status === "ok") {
+                    window.lastBackupDir = data.backup_dir;
+                    out.textContent = "Backup success! Dir: " + data.backup_dir;
+                } else {
+                    out.textContent = "Backup failed: " + JSON.stringify(data);
+                }
+            } catch (err) {
+                out.textContent = "Backup error: " + err.message;
+            }
+        }
+
+        async function triggerWorkspaceRestore() {
+            const out = document.getElementById('adv-backup-output');
+            if (!window.lastBackupDir) {
+                out.textContent = "Error: Please create a backup first to get a backup_dir.";
+                return;
+            }
+            out.textContent = "Verifying/Restoring backup from " + window.lastBackupDir + "...";
+            try {
+                const res = await fetch('/api/workspace/restore', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({backup_dir: window.lastBackupDir})
+                });
+                const data = await res.json();
+                if (data.status === "restored") {
+                    out.textContent = "Restore successful! Restored from: " + data.backup_dir;
+                } else {
+                    out.textContent = "Restore failed: " + JSON.stringify(data);
+                }
+            } catch (err) {
+                out.textContent = "Restore error: " + err.message;
+            }
+        }
+
+        function switchTab(tabId, updateHash = true) {
             document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(btn => {
                 btn.className = "px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-inactive transition cursor-pointer shrink-0";
@@ -531,7 +682,19 @@
             const btn = document.getElementById('btn-' + tabId);
             if (pane) pane.classList.remove('hidden');
             if (btn) btn.className = "px-3.5 py-2.5 rounded-md text-xs font-mono whitespace-nowrap tab-active transition cursor-pointer shrink-0";
+            const mobileSelect = document.getElementById('mobile-nav-select');
+            if (mobileSelect) mobileSelect.value = tabId;
+            if (updateHash) {
+                window.location.hash = tabId;
+            }
         }
+
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && document.getElementById('tab-content-' + hash)) {
+                switchTab(hash, false);
+            }
+        });
 
         function setImageViewMode(mode) {
             wsImageViewMode = mode;
@@ -541,100 +704,21 @@
                 btnAnnotated.className = "px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow";
                 btnOriginal.className = "px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]";
                 if (wsCurrentInspectionId) {
-                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${wsCurrentInspectionId}.jpg`;
+                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${wsCurrentInspectionId}.jpg?t=` + Date.now();
                 } else {
                     document.getElementById('preview-image').src = 'data/outputs/annotated_pipe_corrosion.jpg';
                 }
             } else {
                 btnOriginal.className = "px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow";
                 btnAnnotated.className = "px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]";
-                const inputPath = document.getElementById('input-image').value || 'data/pipe_corrosion.jpg';
-                document.getElementById('preview-image').src = inputPath;
+                document.getElementById('preview-image').src = wsOriginalImageSrc;
             }
         }
 
-        function refreshOverlayView() {
-            renderOverlayBoxes();
-        }
 
-        function renderOverlayBoxes() {
-            const img = document.getElementById('preview-image');
-            const svg = document.getElementById('overlay-svg');
-            if (!img || !svg) return;
-
-            svg.innerHTML = '';
-            if (!wsCachedFindings || wsCachedFindings.length === 0) return;
-
-            const naturalW = img.naturalWidth || 640;
-            const naturalH = img.naturalHeight || 480;
-            const clientW = img.clientWidth;
-            const clientH = img.clientHeight;
-
-            if (clientW === 0 || clientH === 0) return;
-
-            const scaleX = clientW / naturalW;
-            const scaleY = clientH / naturalH;
-
-            const corrChecked = document.getElementById('chk-overlay-corr').checked;
-            const crkChecked = document.getElementById('chk-overlay-crk').checked;
-            const surfChecked = document.getElementById('chk-overlay-surf').checked;
-            const leakChecked = document.getElementById('chk-overlay-leak').checked;
-            const insulChecked = document.getElementById('chk-overlay-insul').checked;
-
-            wsCachedFindings.forEach(f => {
-                const detId = f.detector_id || "";
-                if (detId.includes("corrosion") && !corrChecked) return;
-                if (detId.includes("crack") && !crkChecked) return;
-                if (detId.includes("surface") && !surfChecked) return;
-                if (detId.includes("leakage") && !leakChecked) return;
-                if (detId.includes("insulation") && !insulChecked) return;
-
-                const bbox = f.bbox;
-                if (!bbox || bbox.length !== 4) return;
-                const [x, y, w, h] = bbox;
-
-                const rx = x * scaleX;
-                const ry = y * scaleY;
-                const rw = w * scaleX;
-                const rh = h * scaleY;
-
-                let strokeColor = "#fbbf24";
-                if (detId.includes("crack")) strokeColor = "#3b82f6";
-                else if (detId.includes("surface")) strokeColor = "#a855f7";
-                else if (detId.includes("leakage")) strokeColor = "#06b6d4";
-                else if (detId.includes("insulation")) strokeColor = "#10b981";
-
-                const isSelected = (wsSelectedFindingId === f.finding_id);
-                if (isSelected) strokeColor = "#f59e0b";
-
-                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                rect.setAttribute("x", rx);
-                rect.setAttribute("y", ry);
-                rect.setAttribute("width", rw);
-                rect.setAttribute("height", rh);
-                rect.setAttribute("fill", isSelected ? "rgba(245, 158, 11, 0.3)" : "rgba(255, 255, 255, 0.04)");
-                rect.setAttribute("stroke", strokeColor);
-                rect.setAttribute("stroke-width", isSelected ? "2.5" : "1.75");
-                rect.setAttribute("stroke-dasharray", isSelected ? "none" : "3,2");
-                rect.style.cursor = "pointer";
-                rect.onclick = () => selectFinding(f.finding_id);
-                svg.appendChild(rect);
-
-                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                text.setAttribute("x", rx + 3);
-                text.setAttribute("y", Math.max(12, ry - 4));
-                text.setAttribute("fill", strokeColor);
-                text.setAttribute("font-size", "10");
-                text.setAttribute("font-family", "JetBrains Mono, monospace");
-                text.setAttribute("font-weight", "bold");
-                text.textContent = f.region_id || "REG";
-                svg.appendChild(text);
-            });
-        }
 
         function selectFinding(findingId) {
             wsSelectedFindingId = findingId;
-            renderOverlayBoxes();
             switchTab('tab-findings');
             const el = document.getElementById('finding-row-' + findingId);
             if (el) {
@@ -651,24 +735,22 @@
                 metaBar.classList.remove('hidden');
                 document.getElementById('meta-filename').innerText = `File: ${file.name}`;
                 document.getElementById('meta-size').innerText = `Size: ${(file.size / 1024).toFixed(1)} KB`;
-                document.getElementById('input-image').value = '';
+                wsOriginalImageSrc = URL.createObjectURL(file);
+                if (wsImageViewMode === 'original') {
+                    document.getElementById('preview-image').src = wsOriginalImageSrc;
+                }
             }
         });
 
-        function loadDefaultImage() {
-            document.getElementById('input-image').value = 'data/pipe_corrosion.jpg';
+        function resetWorkspace() {
             document.getElementById('file-upload').value = '';
             document.getElementById('file-meta-bar').classList.add('hidden');
-        }
-
-        function resetWorkspace() {
-            loadDefaultImage();
-            document.getElementById('preview-image').src = 'data/pipe_corrosion.jpg';
-            document.getElementById('preview-badge').innerText = "Evidence Canvas (Approximate Bounding Regions)";
+            wsOriginalImageSrc = 'data/pipe_corrosion.jpg';
+            document.getElementById('preview-image').src = wsOriginalImageSrc;
+            document.getElementById('preview-badge').innerText = "Evidence Canvas (Backend Annotated Regions)";
             wsCachedFindings = [];
-            renderOverlayBoxes();
             document.getElementById('export-actions').classList.add('hidden');
-            document.getElementById('ws-message').innerText = "Workspace reset to default test image.";
+            document.getElementById('ws-message').innerText = "Workspace reset.";
         }
 
         function openModal(src) {
@@ -743,7 +825,6 @@
 
         async function runPipelineAndWorkspace() {
             const fileInput = document.getElementById('file-upload');
-            const imagePath = document.getElementById('input-image').value;
             const assetId = document.getElementById('ws-asset-id').value.trim() || 'PIPE-01';
             const location = document.getElementById('ws-location').value.trim() || 'Plant Zone A';
             const material = document.getElementById('ws-material').value.trim() || 'steel';
@@ -785,13 +866,12 @@
                             pipe_material: material,
                             criticality: criticality,
                             inspection_date: date,
-                            image_path: imagePath,
+                            image_path: 'data/pipe_corrosion.jpg',
                             surface: surface,
                             same_position: samePosition
                         })
                     });
                 }
-
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || 'Inspection failed');
 
@@ -806,7 +886,6 @@
                 await wsLoadInspection();
                 loadHistory();
                 switchTab('tab-results');
-
             } catch (err) {
                 msgEl.textContent = "Error: " + err.message;
                 alert("Error: " + err.message);
@@ -824,7 +903,6 @@
                 const data = await r.json();
                 wsCachedFindings = data.findings || [];
                 wsRenderFindings();
-                renderOverlayBoxes();
 
                 const insp = data.inspection || {};
                 const inspId = insp.inspection_id || wsCurrentInspectionId;
@@ -867,7 +945,9 @@
                 document.getElementById('res-action').innerText = auth.action || 'Ongoing monitoring';
 
                 if (wsImageViewMode === 'annotated') {
-                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${inspId}.jpg`;
+                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${inspId}.jpg?t=` + Date.now();
+                } else {
+                    document.getElementById('preview-image').src = wsOriginalImageSrc;
                 }
 
                 const exportActions = document.getElementById('export-actions');
@@ -916,12 +996,21 @@
             if (!container) return;
             container.innerHTML = "";
 
-            if (!wsCachedFindings || wsCachedFindings.length === 0) {
-                container.innerHTML = `<div class="text-xs font-mono text-slate-400 text-center py-8">No corrosion candidates found in this photo. This does not certify the asset.</div>`;
+            const showExpToggle = document.getElementById('toggle-experimental');
+            const showExperimental = showExpToggle ? showExpToggle.checked : true;
+
+            const filteredByExp = (wsCachedFindings || []).filter(f => {
+                const isExp = f.experimental || (f.detector_id && f.detector_id !== 'corrosion_detector');
+                if (isExp && !showExperimental) return false;
+                return true;
+            });
+
+            if (!filteredByExp || filteredByExp.length === 0) {
+                container.innerHTML = `<div class="text-xs font-mono text-slate-400 text-center py-8">No findings match current filter & experimental settings.</div>`;
                 return;
             }
 
-            const visibleFindings = wsCachedFindings.filter(f => {
+            const visibleFindings = filteredByExp.filter(f => {
                 const st = f.human_review_status || "unreviewed";
                 if (wsCurrentFilter === 'all') return true;
                 if (wsCurrentFilter === 'confirmed_followup') return st === 'confirmed' || st === 'needs_followup';
@@ -930,14 +1019,14 @@
 
             if (visibleFindings.length === 0) {
                 if (emptyEl) emptyEl.classList.remove("hidden");
-                container.innerHTML = `<div class="text-xs font-mono text-slate-400 text-center py-6">No corrosion candidates found in this photo. This does not certify the asset.</div>`;
+                container.innerHTML = `<div class="text-xs font-mono text-slate-400 text-center py-6">No findings match current filter & experimental settings.</div>`;
                 return;
             } else {
                 if (emptyEl) emptyEl.classList.add("hidden");
             }
 
             const groups = {};
-            wsCachedFindings.forEach(f => {
+            filteredByExp.forEach(f => {
                 const det = f.detector_id || "unknown";
                 if (!groups[det]) groups[det] = [];
                 groups[det].push(f);
@@ -993,6 +1082,7 @@
                         <div class="text-slate-300 italic text-[11px]">${f.evidence_description || ''}</div>
                         <div class="flex items-center justify-between pt-1">
                             <span>Status: <span class="px-2 py-0.5 rounded text-[10px] ${f.human_review_status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : f.human_review_status === 'rejected' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-[#162038] text-slate-300 border border-[#1a233d]'}">${f.human_review_status}</span></span>
+                            ${(f.possible_overlap || (f.metadata && f.metadata.possible_overlap)) ? '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono">⚠️ possible_overlap</span>' : ''}
                         </div>
                     `;
                     const btns = document.createElement("div");
@@ -1114,10 +1204,16 @@
 
         fetch("/api/status").then(r => r.json()).then(d => {
             const el = document.getElementById("tests-passing");
-            if (el) el.textContent = d.tests_passing || "111";
+            if (el) el.textContent = d.tests_passing || "202";
         }).catch(() => {});
 
         window.onload = function() {
+            const initialHash = window.location.hash.replace('#', '');
+            if (initialHash && document.getElementById('tab-content-' + initialHash)) {
+                switchTab(initialHash, false);
+            } else {
+                switchTab('tab-source', false);
+            }
             loadHistory();
             wsRefreshAssets();
         };

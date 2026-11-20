@@ -45,6 +45,8 @@ from workspace.models import Asset, Inspection, Finding, MaintenanceRecord
 from workspace.prioritization import score as prioritize
 from workspace.report import generate_html_report
 from vision.orchestrator import MultiHazardOrchestrator
+from workspace.backup import create_backup, restore_backup, verify_backup_db
+from anomaly.detectors import RobustZScoreDetector, EWMADetector, CUSUMDetector
 import hashlib
 import shutil
 import html
@@ -498,6 +500,33 @@ th {{ color: #94a3b8; }}
                 store.close()
             return
 
+        elif path == "/api/workspace/export-csv":
+            store = _workspace()
+            try:
+                csv_data = store.export_inspection_history_csv()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", "attachment; filename=inspections_export.csv")
+                self.end_headers()
+                self.wfile.write(csv_data.encode("utf-8"))
+            finally:
+                store.close()
+            return
+
+        elif path.startswith("/api/workspace/asset-export-csv/"):
+            asset_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                csv_data = store.export_asset_history_csv(asset_id)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", f"attachment; filename=asset_{asset_id}_export.csv")
+                self.end_headers()
+                self.wfile.write(csv_data.encode("utf-8"))
+            finally:
+                store.close()
+            return
+
         elif path == "/api/workspace/lookup-qr":
             payload = query.get("payload", [""])[0]
             if not payload:
@@ -525,6 +554,97 @@ th {{ color: #94a3b8; }}
     def do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
+
+        if path == "/api/workspace/backup":
+            try:
+                backup_dir = create_backup()
+                _json_response(self, {"status": "ok", "backup_dir": backup_dir})
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            return
+
+        if path == "/api/workspace/restore":
+            try:
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                backup_dir = data.get("backup_dir")
+                if not backup_dir or not os.path.exists(backup_dir):
+                    _json_response(self, {"error": "Valid backup_dir required"}, 400)
+                    return
+                restore_backup(backup_dir, target_workspace_root=WORKSPACE_ROOT)
+                _json_response(self, {"status": "restored", "backup_dir": backup_dir})
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            return
+
+        if path == "/api/v2/telemetry/upload":
+            try:
+                content_type = self.headers.get("Content-Type", "")
+                csv_content = ""
+                asset_id = "UPLOAD-PIPE-01"
+                if "multipart/form-data" in content_type:
+                    body = _read_body_bytes(self)
+                    msg = email.parser.BytesParser().parsebytes(
+                        b"Content-Type: " + content_type.encode() + b"\r\n\r\n" + body
+                    )
+                    for part in msg.walk():
+                        cd = part.get("Content-Disposition", "")
+                        if "filename=" in cd:
+                            csv_content = (part.get_payload(decode=True) or b"").decode("utf-8", "ignore")
+                        else:
+                            name = part.get_param("name", header="content-disposition")
+                            if name == "asset_id":
+                                asset_id = part.get_payload(decode=True).decode("utf-8", "ignore").strip()
+                else:
+                    body = _read_body_bytes(self)
+                    data = json.loads(body.decode("utf-8") or "{}")
+                    csv_content = data.get("csv_content", "")
+                    asset_id = data.get("asset_id", asset_id)
+
+                if not csv_content:
+                    _json_response(self, {"error": "CSV content is required"}, 400)
+                    return
+
+                import csv
+                import io
+                reader = csv.DictReader(io.StringIO(csv_content))
+                values = []
+                timestamps = []
+                for row in reader:
+                    val_str = row.get("value") or row.get("vibration") or row.get("pressure") or list(row.values())[-1]
+                    ts = row.get("timestamp") or time.strftime("%Y-%m-%d %H:%M:%S")
+                    try:
+                        values.append(float(val_str))
+                        timestamps.append(ts)
+                    except Exception:
+                        continue
+
+                if not values:
+                    _json_response(self, {"error": "No valid numerical values parsed from CSV"}, 400)
+                    return
+
+                z_detector = RobustZScoreDetector(metric="vibration", threshold=3.0)
+                ewma_detector = EWMADetector(metric="vibration", threshold=2.5)
+                cusum_detector = CUSUMDetector(metric="vibration", threshold=4.0)
+
+                alerts = []
+                alerts.extend(z_detector.evaluate(values, timestamps, asset_id, "real_csv"))
+                alerts.extend(ewma_detector.evaluate(values, timestamps, asset_id, "real_csv"))
+                alerts.extend(cusum_detector.evaluate(values, timestamps, asset_id, "real_csv"))
+
+                records = [{"timestamp": ts, "value": v, "asset_id": asset_id} for ts, v in zip(timestamps, values)]
+                store_telemetry_records(records)
+
+                _json_response(self, {
+                    "status": "success",
+                    "records_processed": len(values),
+                    "anomalies_detected": len(alerts),
+                    "anomalies": alerts,
+                    "badge": "[REAL]"
+                })
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            return
 
         if path == "/api/v2/telemetry/simulate":
             try:
@@ -712,7 +832,7 @@ th {{ color: #94a3b8; }}
                         result = {"detectors": {}, "authoritative_inspection_report": authoritative, "detector_summaries": []}
                         shutil.copyfile(img_abs, annotated_output_path)
                     else:
-                        orch = MultiHazardOrchestrator()
+                        orch = MultiHazardOrchestrator(enable_experimental=True)
                         result = orch.run_inspections(decoded, output_annotated_path=annotated_output_path, output_roi_path=roi_output_path, use_roi=True)
                         authoritative = result.get("authoritative_inspection_report", {})
                         authoritative["same_position"] = same_position
@@ -797,9 +917,10 @@ th {{ color: #94a3b8; }}
                 data = json.loads(body.decode("utf-8") or "{}")
                 status = str(data.get("status", "")).strip()
                 notes = str(data.get("notes", ""))
+                reviewer_name = str(data.get("reviewer_name", "Lead Inspector")).strip()
                 store = _workspace()
                 try:
-                    store.review_finding(finding_id, status, notes)
+                    store.review_finding(finding_id, status, notes, reviewer_name)
                     _json_response(self, {"status": "ok", "finding_id": finding_id, "review_status": status})
                 finally:
                     store.close()
@@ -1109,6 +1230,97 @@ th {{ color: #94a3b8; }}
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(response_data, indent=2).encode("utf-8"))
+            return
+
+        self.send_error(404, "Not Found")
+
+    def do_PUT(self):
+        parsed_path = urllib.parse.urlparse(self.path)
+        path = parsed_path.path
+
+        if path.startswith("/api/workspace/asset/"):
+            asset_id = urllib.parse.unquote(path.split("/")[-1])
+            try:
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                store = _workspace()
+                try:
+                    existing = store.get_asset(asset_id)
+                    if not existing:
+                        _json_response(self, {"error": "Asset not found"}, 404)
+                        return
+                    updated_asset = Asset(
+                        asset_id=asset_id,
+                        location=str(data.get("location", existing.location)),
+                        pipe_material=str(data.get("pipe_material", existing.pipe_material)),
+                        pipe_type=str(data.get("pipe_type", existing.pipe_type)),
+                        criticality=str(data.get("criticality", existing.criticality)),
+                        notes=str(data.get("notes", existing.notes)),
+                        qr_payload=str(data.get("qr_payload", existing.qr_payload)),
+                    )
+                    store.upsert_asset(updated_asset)
+                    _json_response(self, {"status": "ok", "asset_id": asset_id})
+                finally:
+                    store.close()
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            return
+
+        elif path.startswith("/api/workspace/maintenance/"):
+            record_id = urllib.parse.unquote(path.split("/")[-1])
+            try:
+                body = _read_body_bytes(self)
+                data = json.loads(body.decode("utf-8") or "{}")
+                status = str(data.get("verification_status", "verified_resolved"))
+                followup = data.get("followup_inspection_id")
+                store = _workspace()
+                try:
+                    store._conn.execute(
+                        "UPDATE maintenance_records SET verification_status=?, followup_inspection_id=? WHERE record_id=?",
+                        (status, followup, record_id)
+                    )
+                    store._conn.commit()
+                    _json_response(self, {"status": "ok", "record_id": record_id, "verification_status": status})
+                finally:
+                    store.close()
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            return
+
+        self.send_error(404, "Not Found")
+
+    def do_DELETE(self):
+        parsed_path = urllib.parse.urlparse(self.path)
+        path = parsed_path.path
+
+        if path.startswith("/api/workspace/asset/"):
+            asset_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                store._conn.execute("DELETE FROM findings WHERE inspection_id IN (SELECT inspection_id FROM inspections WHERE asset_id=?)", (asset_id,))
+                store._conn.execute("DELETE FROM maintenance_records WHERE asset_id=?", (asset_id,))
+                store._conn.execute("DELETE FROM inspections WHERE asset_id=?", (asset_id,))
+                store._conn.execute("DELETE FROM assets WHERE asset_id=?", (asset_id,))
+                store._conn.commit()
+                _json_response(self, {"status": "deleted", "asset_id": asset_id})
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            finally:
+                store.close()
+            return
+
+        elif path.startswith("/api/workspace/inspection/"):
+            insp_id = urllib.parse.unquote(path.split("/")[-1])
+            store = _workspace()
+            try:
+                store._conn.execute("DELETE FROM findings WHERE inspection_id=?", (insp_id,))
+                store._conn.execute("DELETE FROM inspections WHERE inspection_id=?", (insp_id,))
+                store._conn.commit()
+                _json_response(self, {"status": "deleted", "inspection_id": insp_id})
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+            finally:
+                store.close()
             return
 
         self.send_error(404, "Not Found")

@@ -1,0 +1,19 @@
+# CementSight AI — Systemd Service Configuration (/etc/systemd/system/cementsight.service)
+# Ensures automatic server recovery and process supervision on port 8989.
+
+[Unit]
+Description=CementSight AI Industrial Infrastructure Intelligence Platform
+After=network.target
+
+[Service]
+Type=simple
+User=cementsight
+WorkingDirectory=/data/data/com.termux/files/home/cementsight-ai
+ExecStart=/data/data/com.termux/files/usr/bin/python3 tools/server.py 8989
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

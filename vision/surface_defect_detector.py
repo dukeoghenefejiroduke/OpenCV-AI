@@ -92,6 +92,14 @@ class SurfaceDefectDetector(BaseDetector):
             cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_kernel)
             cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, close_kernel)
 
+            # Restrict to foreground asset ROI if available
+            try:
+                from vision.inspection import compute_foreground_roi_mask
+                roi_mask, _, _ = compute_foreground_roi_mask(decoded_img)
+                cleaned = cv2.bitwise_and(cleaned, roi_mask)
+            except Exception:
+                pass
+
             contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             findings = []

@@ -89,6 +89,14 @@ class MaterialBuildupDetector(BaseDetector):
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
             closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
+            # Restrict to foreground asset ROI if available
+            try:
+                from vision.inspection import compute_foreground_roi_mask
+                roi_mask, _, _ = compute_foreground_roi_mask(decoded_img)
+                closed = cv2.bitwise_and(closed, roi_mask)
+            except Exception:
+                pass
+
             contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             findings = []
