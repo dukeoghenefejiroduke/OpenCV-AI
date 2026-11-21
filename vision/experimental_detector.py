@@ -124,39 +124,34 @@ class ExperimentalCoatingDetector(BaseDetector):
         
         height, width = decoded.shape[:2]
         total_pixels = height * width
-        min_coating_area = int(total_pixels * 0.005) # >= 0.5% of image area
+        min_coating_area = int(total_pixels * 0.002) # >= 0.2% of image area
         
         gray = cv2.cvtColor(decoded, cv2.COLOR_BGR2GRAY)
         hsv = cv2.cvtColor(decoded, cv2.COLOR_BGR2HSV)
         
-        # Color boundary check: intact paint (e.g. green/white coating) vs exposed substrate
-        # Compute gradient magnitude of color and texture
+        # Green paint mask (H: 35 to 85 in OpenCV HSV, S > 30, V > 30) representing peeling/flaking green coating
+        green_paint_mask = cv2.inRange(hsv, np.array([35, 30, 30], dtype=np.uint8), np.array([85, 255, 255], dtype=np.uint8))
+        
+        # Also detect texture gradients/delamination boundaries between paint and rust
         lap = cv2.Laplacian(gray, cv2.CV_32F)
         grad_mag = cv2.convertScaleAbs(lap)
+        edge_mask = ((grad_mag > 25) & (green_paint_mask > 0)).astype(np.uint8) * 255
         
-        # Color difference from rust/brown or background
-        _, thresh = cv2.threshold(grad_mag, 50, 255, cv2.THRESH_BINARY)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        closed_coating = cv2.morphologyEx(edge_mask, cv2.MORPH_CLOSE, kernel)
         
-        cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts, _ = cv2.findContours(closed_coating, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         findings = []
         for cnt in cnts:
             area = cv2.contourArea(cnt)
             if area < min_coating_area:
                 continue
             x, y, w, h = cv2.boundingRect(cnt)
-            if w < 20 or h < 20:
-                continue
-            
-            # Check color/texture variance inside box vs surrounding
-            sub_hsv = hsv[y:y+h, x:x+w]
-            if sub_hsv.size == 0:
-                continue
-            color_std = np.std(sub_hsv[:, :, 0])
-            if color_std < 10.0: # Requires sharp color/texture boundaries
+            if w < 15 or h < 15:
                 continue
             
             position, pct = get_region_position_and_percentage([x, y, w, h], (height, width), area)
-            confidence = min(0.90, max(0.65, 0.65 + (area / total_pixels)))
+            confidence = min(0.92, max(0.68, 0.68 + (area / total_pixels) * 5.0))
             findings.append({
                 "finding_id": f"exp_coat_{uuid.uuid4().hex[:8]}",
                 "region_id": f"COT-{len(findings)+1:03d}",
@@ -166,10 +161,10 @@ class ExperimentalCoatingDetector(BaseDetector):
                 "confidence": round(confidence, 2),
                 "experimental": True,
                 "requires_human_review": True,
-                "evidence_description": f"Experimental coating peel/blister at {position} (area {int(area)}px, color variance {color_std:.1f})."
+                "evidence_description": f"Peeling green paint coating delamination at {position} (area {int(area)}px)."
             })
             
-        findings = sorted(findings, key=lambda f: f.get("confidence", 0.0), reverse=True)[:3]
+        findings = sorted(findings, key=lambda f: f.get("confidence", 0.0), reverse=True)[:4]
         status = STATUS_CANDIDATE_DETECTED if findings else STATUS_NO_CANDIDATE
         return {
             "detector_id": self.detector_id,

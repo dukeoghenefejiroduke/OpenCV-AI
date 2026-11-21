@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CementSight AI — Industrial Infrastructure Intelligence</title>
     <!-- Local Offline Tailwind CSS Bundle & System Fonts -->
-    <link rel="stylesheet" href="tailwind.css">
+    <link rel="stylesheet" href="/app/tailwind.css">
     <style>
         :root {
             --bg-base: #050811;
@@ -265,7 +265,7 @@
                         <span class="text-[10px] text-slate-500">Tap image to enlarge</span>
                     </div>
                     <div class="relative bg-[#050811] border border-[#1a233d] rounded-lg overflow-hidden min-h-[300px] sm:min-h-[360px] flex items-center justify-center p-2 shadow-inner">
-                        <img id="preview-image" src="data/pipe_corrosion.jpg" alt="Inspection Canvas" class="max-h-[420px] max-w-full object-contain rounded cursor-pointer transition" onclick="openModal(this.src)">
+                        <img id="preview-image" src="/api/workspace/image/INS-DEMO-001?mode=annotated" alt="Inspection Canvas" class="max-h-[420px] max-w-full object-contain rounded cursor-pointer transition" onclick="openModal(this.src)" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='/data/pipe_corrosion.jpg';}">
                         <div id="loading-overlay" class="absolute inset-0 bg-[#050811]/90 backdrop-blur-sm flex items-center justify-center hidden z-20">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -317,7 +317,7 @@
                         <span class="text-amber-400 font-bold">Stage 1: Ingestion</span>
                         <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Done</span>
                     </div>
-                    <div class="text-slate-300 truncate">Source: <span id="in-stage1" class="text-slate-200">data/pipe_corrosion.jpg</span></div>
+                    <div class="text-slate-300 truncate">Source: <span id="in-stage1" class="text-slate-200">/data/pipe_corrosion.jpg</span></div>
                 </div>
                 <div class="eng-card rounded-lg p-3.5 space-y-1.5 border border-[#1a233d]">
                     <div class="flex items-center justify-between">
@@ -563,7 +563,7 @@
     <div id="image-modal" class="fixed inset-0 bg-[#050811]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden" onclick="closeModal()">
         <div class="relative max-w-5xl max-h-[90vh] eng-panel rounded-lg p-4 sm:p-5 shadow-2xl" onclick="event.stopPropagation()">
             <button onclick="closeModal()" class="absolute top-3 right-3 w-8 h-8 rounded-md bg-[#162038] text-slate-300 hover:text-white flex items-center justify-center font-bold text-xs transition border border-[#1a233d] cursor-pointer">✕</button>
-            <img id="modal-img" src="" alt="Enlarged View" class="max-h-[82vh] max-w-full object-contain rounded-md">
+            <img id="modal-img" src="" alt="Enlarged View" class="max-h-[82vh] max-w-full object-contain rounded-md" onerror="this.onerror=null;this.src='data/pipe_corrosion.jpg';">
         </div>
     </div>
 
@@ -575,12 +575,19 @@
 
     <!-- JavaScript Application Logic -->
     <script>
-        let wsCurrentInspectionId = null;
-        let wsCurrentFilter = 'confirmed_followup';
+        let wsCurrentInspectionId = 'INS-DEMO-001';
+        let wsCurrentFilter = 'all';
         let wsCachedFindings = [];
         let wsImageViewMode = 'annotated';
         let wsSelectedFindingId = null;
-        let wsOriginalImageSrc = 'data/pipe_corrosion.jpg';
+        let wsAnnotatedImageSrc = '/api/workspace/image/INS-DEMO-001?mode=annotated';
+        let wsOriginalImageSrc = '/api/workspace/image/INS-DEMO-001?mode=original';
+
+        function withCacheBust(url) {
+            if (!url || url.startsWith('blob:') || url.startsWith('data:')) return url;
+            const sep = url.includes('?') ? '&' : '?';
+            return `${url}${sep}t=${Date.now()}`;
+        }
 
         async function runAdvancedTelemetrySimulation() {
             const assetId = document.getElementById('adv-asset-id').value || 'PIPE-ADV-01';
@@ -700,18 +707,19 @@
             wsImageViewMode = mode;
             const btnAnnotated = document.getElementById('btn-view-annotated');
             const btnOriginal = document.getElementById('btn-view-original');
+            const previewImg = document.getElementById('preview-image');
+            const badge = document.getElementById('preview-badge');
+            if (previewImg) delete previewImg.dataset.fallback;
             if (mode === 'annotated') {
                 btnAnnotated.className = "px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow";
                 btnOriginal.className = "px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]";
-                if (wsCurrentInspectionId) {
-                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${wsCurrentInspectionId}.jpg?t=` + Date.now();
-                } else {
-                    document.getElementById('preview-image').src = 'data/outputs/annotated_pipe_corrosion.jpg';
-                }
+                if (badge) badge.innerText = "Evidence Canvas (Server-Analyzed Annotated Regions)";
+                previewImg.src = withCacheBust(wsAnnotatedImageSrc || `/api/workspace/image/${wsCurrentInspectionId || 'INS-DEMO-001'}?mode=annotated`);
             } else {
                 btnOriginal.className = "px-3 py-1.5 rounded-md bg-amber-500 text-slate-950 font-bold transition shadow";
                 btnAnnotated.className = "px-3 py-1.5 rounded-md bg-[#162038] text-slate-300 hover:text-white transition border border-[#1a233d]";
-                document.getElementById('preview-image').src = wsOriginalImageSrc;
+                if (badge) badge.innerText = "Evidence Canvas (Server Original Source Image)";
+                previewImg.src = withCacheBust(wsOriginalImageSrc || `/api/workspace/image/${wsCurrentInspectionId || 'INS-DEMO-001'}?mode=original`);
             }
         }
 
@@ -745,12 +753,12 @@
         function resetWorkspace() {
             document.getElementById('file-upload').value = '';
             document.getElementById('file-meta-bar').classList.add('hidden');
-            wsOriginalImageSrc = 'data/pipe_corrosion.jpg';
-            document.getElementById('preview-image').src = wsOriginalImageSrc;
-            document.getElementById('preview-badge').innerText = "Evidence Canvas (Backend Annotated Regions)";
-            wsCachedFindings = [];
-            document.getElementById('export-actions').classList.add('hidden');
-            document.getElementById('ws-message').innerText = "Workspace reset.";
+            wsCurrentInspectionId = 'INS-DEMO-001';
+            wsAnnotatedImageSrc = '/api/workspace/image/INS-DEMO-001?mode=annotated';
+            wsOriginalImageSrc = '/api/workspace/image/INS-DEMO-001?mode=original';
+            setImageViewMode('annotated');
+            wsLoadInspection();
+            document.getElementById('ws-message').innerText = "Workspace reset to baseline demo inspection.";
         }
 
         function openModal(src) {
@@ -866,7 +874,7 @@
                             pipe_material: material,
                             criticality: criticality,
                             inspection_date: date,
-                            image_path: 'data/pipe_corrosion.jpg',
+                            image_path: '/data/pipe_corrosion.jpg',
                             surface: surface,
                             same_position: samePosition
                         })
@@ -876,6 +884,9 @@
                 if (!response.ok) throw new Error(data.error || 'Inspection failed');
 
                 wsCurrentInspectionId = data.inspection_id;
+                wsAnnotatedImageSrc = data.annotated_output || `/api/workspace/image/${data.inspection_id}?mode=annotated`;
+                wsOriginalImageSrc = data.original_output || `/api/workspace/image/${data.inspection_id}?mode=original`;
+                wsImageViewMode = 'annotated';
                 
                 // Sync header state immediately
                 document.getElementById("active-inspection-id").textContent = data.inspection_id;
@@ -888,7 +899,7 @@
                 switchTab('tab-results');
             } catch (err) {
                 msgEl.textContent = "Error: " + err.message;
-                alert("Error: " + err.message);
+                console.error("Inspection error:", err);
             } finally {
                 btn.disabled = false;
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
@@ -907,12 +918,17 @@
                 const insp = data.inspection || {};
                 const inspId = insp.inspection_id || wsCurrentInspectionId;
                 const assetId = insp.asset_id || document.getElementById("ws-asset-id").value || 'PIPE-01';
-                const loc = document.getElementById("ws-location").value || 'Plant Zone A';
+                const loc = insp.location || document.getElementById("ws-location").value || 'Plant Zone A';
+
+                wsAnnotatedImageSrc = insp.annotated_output || `/api/workspace/image/${inspId}?mode=annotated`;
+                wsOriginalImageSrc = insp.original_output || `/api/workspace/image/${inspId}?mode=original`;
 
                 // Sync Header State Across All Tabs
                 document.getElementById("active-inspection-id").textContent = inspId;
                 document.getElementById("active-asset-id").textContent = assetId;
                 document.getElementById("active-location").textContent = loc;
+                const stage1El = document.getElementById("in-stage1");
+                if (stage1El) stage1El.textContent = insp.input_filename || 'pipe_corrosion.jpg';
 
                 const auth = insp.authoritative_report || {};
                 const dec = auth.decision || 'WARNING';
@@ -930,8 +946,8 @@
                 }
                 const metricCorr = document.getElementById('metric-corrosion');
                 if (metricCorr) {
-                    const corrVal = insp.corrosion_percentage !== undefined ? insp.corrosion_percentage + "%" : "-- %";
-                    metricCorr.innerText = corrVal;
+                    const corrPct = insp.corrosion_percentage !== undefined ? insp.corrosion_percentage : auth.corrosion_percentage;
+                    metricCorr.innerText = corrPct !== undefined ? corrPct + "%" : "-- %";
                 }
                 const metricApp = document.getElementById('metric-approval');
                 if (metricApp) {
@@ -944,11 +960,7 @@
                 document.getElementById('res-reason').innerText = `${reasonText} [${screeningLabel}]`;
                 document.getElementById('res-action').innerText = auth.action || 'Ongoing monitoring';
 
-                if (wsImageViewMode === 'annotated') {
-                    document.getElementById('preview-image').src = `/data/outputs/live_annotated_${inspId}.jpg?t=` + Date.now();
-                } else {
-                    document.getElementById('preview-image').src = wsOriginalImageSrc;
-                }
+                setImageViewMode(wsImageViewMode);
 
                 const exportActions = document.getElementById('export-actions');
                 exportActions.classList.remove('hidden');
@@ -1214,6 +1226,7 @@
             } else {
                 switchTab('tab-source', false);
             }
+            wsLoadInspection();
             loadHistory();
             wsRefreshAssets();
         };

@@ -167,16 +167,17 @@ def inspect_corrosion(image_path_or_array, output_annotated_path=None, output_ro
 
     raw_hsv_mask = cv2.inRange(hsv, lower_rust, upper_rust)
 
-    # Expand rust mask to include specular glare / dark rust / corroded hex heads:
-    # High texture (Laplacian variance above threshold) + warm CIELAB values (a* > 130 or b* > 135) even when V > 180 and S is low.
+    # Expand rust mask to include specular glare / dark brown ochre rough rust / corroded hex heads:
     gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
     lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
     l_channel, a_channel, b_channel = cv2.split(lab)
     lap = cv2.Laplacian(gray, cv2.CV_32F)
     grad_mag = cv2.convertScaleAbs(lap)
     
-    # Warm CIELAB & high texture + high value (specular glare rust)
+    # Dark brown / ochre rough rust (V between 30 and 130, a* > 126, b* > 130) across all 3 pipes and hex heads
+    dark_brown_rust_mask = ((grad_mag > 3) & (a_channel > 126) & (b_channel > 130) & (hsv[:, :, 2] >= 30) & (hsv[:, :, 2] <= 130)).astype(np.uint8) * 255
     specular_glare_rust_mask = ((grad_mag > 6) & ((a_channel > 130) | (b_channel > 135)) & (hsv[:, :, 2] > 180)).astype(np.uint8) * 255
+    raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, dark_brown_rust_mask)
     raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, specular_glare_rust_mask)
 
     raw_hsv_mask_pixels = int(np.sum(raw_hsv_mask > 0))

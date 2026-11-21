@@ -1,0 +1,9 @@
+{
+  "name": "CementSight AI - Industrial Infrastructure Intelligence",
+  "description": "AI-powered industrial infrastructure intelligence platform for corrosion detection, asset inspection, telemetry anomaly monitoring, digital twin health propagation, and CMMS work order dispatch.",
+  "request": "Migrate and run CementSight AI industrial inspection and telemetry monitoring platform in AI Studio.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ],
+  "permissions": []
+}
