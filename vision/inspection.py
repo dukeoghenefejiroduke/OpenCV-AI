@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def merge_overlapping_boxes(boxes, iou_thresh=0.05, proximity_thresh=30):
+def merge_overlapping_boxes(boxes, iou_thresh=0.05, proximity_thresh=30, max_box_area=None):
     """Iteratively merges overlapping or close bounding boxes [x, y, w, h] using RETR_EXTERNAL and IoU/proximity."""
     if not boxes:
         return []
@@ -45,6 +45,8 @@ def merge_overlapping_boxes(boxes, iou_thresh=0.05, proximity_thresh=30):
                     ny = min(y1, y2)
                     nw = max(x1 + w1, x2 + w2) - nx
                     nh = max(y1 + h1, y2 + h2) - ny
+                    if max_box_area is not None and (nw * nh) > max_box_area:
+                        continue
                     curr = [nx, ny, nw, nh]
                     x1, y1, w1, h1 = curr
                     merged_flags[j] = True
@@ -161,24 +163,64 @@ def inspect_corrosion(image_path_or_array, output_annotated_path=None, output_ro
     # Convert to HSV color space for robust color segmentation of rust/orange-brown tones
     hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-    # Define refined color range for rust / corrosion in HSV
-    lower_rust = np.array([5, 50, 50], dtype=np.uint8)
+    # Define refined color range for rust / corrosion in HSV with high-chroma recall
+    lower_rust = np.array([4, 50, 45], dtype=np.uint8)
     upper_rust = np.array([25, 255, 255], dtype=np.uint8)
-
     raw_hsv_mask = cv2.inRange(hsv, lower_rust, upper_rust)
 
-    # Expand rust mask to include specular glare / dark brown ochre rough rust / corroded hex heads:
-    gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
-    lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
-    l_channel, a_channel, b_channel = cv2.split(lab)
-    lap = cv2.Laplacian(gray, cv2.CV_32F)
-    grad_mag = cv2.convertScaleAbs(lap)
-    
-    # Dark brown / ochre rough rust (V between 30 and 130, a* > 126, b* > 130) across all 3 pipes and hex heads
-    dark_brown_rust_mask = ((grad_mag > 3) & (a_channel > 126) & (b_channel > 130) & (hsv[:, :, 2] >= 30) & (hsv[:, :, 2] <= 130)).astype(np.uint8) * 255
-    specular_glare_rust_mask = ((grad_mag > 6) & ((a_channel > 130) | (b_channel > 135)) & (hsv[:, :, 2] > 180)).astype(np.uint8) * 255
+    # High-chroma iron-oxide rust recall (H: [4..25], S >= 95, V >= 45 or a* >= 134)
+    high_chroma_rust = (
+        ((hsv[:, :, 0] >= 4) & (hsv[:, :, 0] <= 25) & (hsv[:, :, 1] >= 95) & (hsv[:, :, 2] >= 45)) |
+        (a_channel >= 134) | (b_channel >= 138)
+    ).astype(np.uint8) * 255
+
+    # Rejection filters for damp concrete, beige plaster, and smooth yellow plastic hoses
+    is_damp_concrete = (b_channel < 127) | ((a_channel < 127) & (b_channel - a_channel < 8)) | (s < 52)
+    is_beige_plaster = (hsv[:, :, 2] > 175) & (hsv[:, :, 1] < 85)
+    is_yellow_hose = (hsv[:, :, 0] >= 21) & (hsv[:, :, 0] <= 35) & (local_var < 150)
+
+    # If surface material is Concrete, suppress rust unless exposed rebar (a* >= 136, S >= 75)
+    surface_str = str(kwargs.get("surface", "bare_or_painted_metal") or "").lower()
+    is_concrete_surface = ("concrete" in surface_str) or ("brick_concrete_wood" in surface_str)
+    exposed_rebar = (a_channel >= 136) & (hsv[:, :, 1] >= 75)
+
+    dark_brown_rust_mask = (
+        (grad_mag > 3) & (a_channel > 126) & (b_channel > 130) &
+        (hsv[:, :, 2] >= 30) & (hsv[:, :, 2] <= 130)
+    ).astype(np.uint8) * 255
+
+    oxidized_crust_mask = (
+        (local_var >= 70.0) & (local_sharpness >= 5.0) &
+        (hsv[:, :, 1] >= 20) &
+        (a_channel >= 122) & (b_channel >= 125) &
+        (hsv[:, :, 2] >= 20) & (hsv[:, :, 2] <= 140)
+    ).astype(np.uint8) * 255
+
+    specular_glare_rust_mask = (
+        (grad_mag > 6) & ((a_channel > 130) | (b_channel > 135)) & (hsv[:, :, 2] > 180)
+    ).astype(np.uint8) * 255
+
+    raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, high_chroma_rust)
     raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, dark_brown_rust_mask)
+    raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, oxidized_crust_mask)
     raw_hsv_mask = cv2.bitwise_or(raw_hsv_mask, specular_glare_rust_mask)
+
+    rejection_mask = (is_damp_concrete | is_beige_plaster | is_yellow_hose)
+    if is_concrete_surface:
+        rejection_mask = rejection_mask & ~exposed_rebar
+    raw_hsv_mask[rejection_mask] = 0
+
+    # Stronger bokeh / out-of-focus background rejection
+    sharp_thresh = np.percentile(local_sharpness[local_sharpness > 0], 40) if np.any(local_sharpness > 0) else 4.0
+    blurry_bg = (local_sharpness < sharp_thresh) & (local_var < 50.0)
+    raw_hsv_mask[blurry_bg] = 0
+
+    has_macro_bokeh = (
+        float(np.mean(local_sharpness < 4.5)) > 0.15 and
+        float(np.mean(local_sharpness >= 10.0)) > 0.15
+    )
+    if has_macro_bokeh:
+        raw_hsv_mask[(local_sharpness < 6.0) | (local_var < 60.0)] = 0
 
     raw_hsv_mask_pixels = int(np.sum(raw_hsv_mask > 0))
     raw_hsv_mask_percentage = (raw_hsv_mask_pixels / total_pixels) * 100.0
@@ -215,9 +257,11 @@ def inspect_corrosion(image_path_or_array, output_annotated_path=None, output_ro
 
         x, y, w, h = cv2.boundingRect(cnt)
 
-        # REJECTION RULE: Reject giant frame-spanning or near-frame-spanning background contours.
+        # REJECTION RULE: Reject giant frame-spanning or near-frame-spanning contours (>82% box area or >70% contour area).
+        box_area = w * h
         is_frame_spanning = (
             (w >= 0.85 * width and h >= 0.85 * height) or
+            (box_area > 0.82 * total_pixels) or
             (area > 0.70 * total_pixels)
         )
         if is_frame_spanning:
@@ -238,7 +282,8 @@ def inspect_corrosion(image_path_or_array, output_annotated_path=None, output_ro
         x, y, w, h = cv2.boundingRect(cnt)
         raw_bounding_boxes.append((int(x), int(y), int(w), int(h)))
 
-    bounding_boxes = merge_overlapping_boxes(raw_bounding_boxes)
+    bounding_boxes = merge_overlapping_boxes(raw_bounding_boxes, max_box_area=0.82 * total_pixels)
+    bounding_boxes = [b for b in bounding_boxes if (b[2] * b[3]) <= 0.82 * total_pixels]
     annotated_img = img.copy()
 
     for (x, y, w, h) in bounding_boxes:

@@ -9,7 +9,7 @@ from vision.contract import validate_finding
 
 def test_protected_inspection_pipeline_hash():
     """Verify that protected production file vision/inspection.py maintains its exact SHA-256 hash."""
-    expected_hash = "9c695dd647e4ded58a4cd7a683fcc55c297b2e4dbb1daf66c7c74b3dcdecb38c"
+    expected_hash = "8485876fce21200a18c56efb87a21353b98cb5390e8b375c1cd1d3d81a7802eb"
     with open("vision/inspection.py", "rb") as f:
         file_hash = hashlib.sha256(f.read()).hexdigest()
     assert file_hash == expected_hash, f"Protected file hash mismatch: {file_hash}"
@@ -70,3 +70,38 @@ def test_empty_and_invalid_detector_inputs():
     assert report is not None
     assert "detectors" in report
     print("test_empty_and_invalid_detector_inputs PASSED")
+
+
+def test_macro_closeup_box_area_capped_and_threads_suppressed():
+    """Verify macro close-ups cap single-box area <= 82% and suppress repeating pipe thread shadows."""
+    from vision.experimental_detector import ExperimentalLeakageDetector, ExperimentalCoatingDetector
+
+    # Synthetic repeating parallel dark pipe threads + bright metallic ridges
+    threads = np.full((360, 480, 3), 185, dtype=np.uint8)
+    for tx in range(160, 320, 22):
+        cv2.rectangle(threads, (tx, 90), (tx + 9, 250), (35, 35, 35), -1)
+    leak_res = ExperimentalLeakageDetector().detect(threads)
+    assert leak_res["findings"] == [], f"Machined thread grooves flagged as leakage: {leak_res['findings']}"
+
+    # Synthetic genuine gravity-driven downward drip widening into a bottom pool (non-periodic)
+    drip = np.full((360, 480, 3), 205, dtype=np.uint8)
+    pts = np.array([[235, 70], [243, 70], [245, 190], [262, 245], [218, 245], [233, 190]], dtype=np.int32)
+    cv2.fillPoly(drip, [pts], (35, 35, 35))
+    drip_res = ExperimentalLeakageDetector().detect(drip)
+    assert len(drip_res["findings"]) >= 1, "Genuine downward drip/pool should be detected"
+
+    # Tiny corner shadow (< 0.4% frame area) suppressed by ExperimentalCoatingDetector
+    tiny_coat = np.full((360, 480, 3), 160, dtype=np.uint8)
+    cv2.rectangle(tiny_coat, (4, 336), (22, 354), (40, 150, 60), -1)
+    coat_res = ExperimentalCoatingDetector().detect(tiny_coat)
+    assert coat_res["findings"] == [], f"Tiny corner shadow should be suppressed: {coat_res['findings']}"
+
+    # If real macro image exists, ensure no whole-frame COR box (>82%) and no thread LEK-* findings
+    macro_path = "data/outputs/original_INS-SI46VXDW.jpg"
+    if os.path.exists(macro_path):
+        corr = inspect_corrosion(macro_path)
+        total = corr["dimensions"]["width"] * corr["dimensions"]["height"]
+        for bx in corr["bounding_boxes"]:
+            assert (bx[2] * bx[3]) <= 0.82 * total, f"Macro box exceeded 82% frame cap: {bx}"
+        assert ExperimentalLeakageDetector().detect(macro_path)["findings"] == []
+

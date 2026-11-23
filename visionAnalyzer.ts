@@ -177,8 +177,8 @@ function extractConnectedBoxes(
       const bw = maxX - minX + 1;
       const bh = maxY - minY + 1;
       if (count >= minPixels && bw >= minDim && bh >= minDim) {
-        // Reject full-frame spanning artifacts unless genuinely huge
-        if (!(bw >= w * 0.92 && bh >= h * 0.92)) {
+        // Reject full-frame / macro-border spanning artifacts (> 82% of frame area or >= 92% width & height)
+        if (!(bw >= w * 0.92 && bh >= h * 0.92) && bw * bh <= w * h * 0.82) {
           boxes.push({ x: minX, y: minY, w: bw, h: bh, pixels: count });
         }
       }
@@ -187,7 +187,12 @@ function extractConnectedBoxes(
   return boxes;
 }
 
-function mergeOverlappingBoxes(boxes: RawBox[], iouThresh = 0.05, proximity = 14): RawBox[] {
+function mergeOverlappingBoxes(
+  boxes: RawBox[],
+  iouThresh = 0.05,
+  proximity = 14,
+  maxBoxArea?: number
+): RawBox[] {
   if (boxes.length === 0) return [];
   let current = boxes.map(b => ({ ...b }));
   let changed = true;
@@ -223,6 +228,9 @@ function mergeOverlappingBoxes(boxes: RawBox[], iouThresh = 0.05, proximity = 14
           const ny = Math.min(a.y, b.y);
           const nw = Math.max(a.x + a.w, b.x + b.w) - nx;
           const nh = Math.max(a.y + a.h, b.y + b.h) - ny;
+          if (maxBoxArea !== undefined && nw * nh > maxBoxArea) {
+            continue;
+          }
           a = { x: nx, y: ny, w: nw, h: nh, pixels: a.pixels + b.pixels };
           merged[j] = true;
           changed = true;
@@ -292,9 +300,14 @@ export async function analyzeInspectionImage(params: {
 }): Promise<AnalysisResult> {
   const { input, inspectionId, surface = 'bare_or_painted_metal' } = params;
 
-  // Normalize EXIF orientation and convert to high-quality JPEG for consistent frontend delivery
-  const baseSharp = sharp(input).rotate();
-  const originalBuffer = await baseSharp.clone().jpeg({ quality: 92 }).toBuffer();
+  // Normalize EXIF orientation, enforce sRGB, cap ultra-high-res phone photos to 1920px max side
+  const baseSharp = sharp(input, { failOn: 'none', limitInputPixels: false }).rotate();
+  const originalBuffer = await baseSharp
+    .clone()
+    .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
+    .toColorspace('srgb')
+    .jpeg({ quality: 92 })
+    .toBuffer();
   const origMeta = await sharp(originalBuffer).metadata();
   const origW = origMeta.width || 1280;
   const origH = origMeta.height || 720;
@@ -307,6 +320,7 @@ export async function analyzeInspectionImage(params: {
 
   const { data: rgb } = await sharp(originalBuffer)
     .resize(procW, procH, { fit: 'fill' })
+    .toColorspace('srgb')
     .removeAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -348,12 +362,48 @@ export async function analyzeInspectionImage(params: {
   const isExcludedSurface =
     surface === 'brick_concrete_wood' || surface === 'other_metal_non_steel';
 
+  // Precompute local 5x5 texture variance and foreground sharpness across procW x procH
+  const localVar = new Float32Array(totalProcPixels);
+  const localSharpness = new Float32Array(totalProcPixels);
+  const winR = 2;
+  for (let y = 0; y < procH; y++) {
+    const y0 = Math.max(0, y - winR);
+    const y1 = Math.min(procH - 1, y + winR);
+    for (let x = 0; x < procW; x++) {
+      const x0 = Math.max(0, x - winR);
+      const x1 = Math.min(procW - 1, x + winR);
+      let sumG = 0;
+      let sumG2 = 0;
+      let sumLap = 0;
+      let cnt = 0;
+      for (let ny = y0; ny <= y1; ny++) {
+        const row = ny * procW;
+        for (let nx = x0; nx <= x1; nx++) {
+          const p = row + nx;
+          const gv = gray[p];
+          sumG += gv;
+          sumG2 += gv * gv;
+          sumLap += grad[p];
+          cnt++;
+        }
+      }
+      const meanG = sumG / cnt;
+      localVar[y * procW + x] = Math.max(0, sumG2 / cnt - meanG * meanG);
+      localSharpness[y * procW + x] = sumLap / cnt;
+    }
+  }
+
+  const stdRustRaw = new Uint8Array(totalProcPixels);
   const rustMaskRaw = new Uint8Array(totalProcPixels);
   const greenPaintMaskRaw = new Uint8Array(totalProcPixels);
   const leakMaskRaw = new Uint8Array(totalProcPixels);
   const darkCrackMaskRaw = new Uint8Array(totalProcPixels);
 
-  let rustPixelCount = 0;
+  let lowSharpCount = 0;
+  let lowSharpOrangeCount = 0;
+  let highSharpCount = 0;
+  let verySharpCount = 0;
+  let bokehLowSharpCount = 0;
 
   for (let y = 1; y < procH - 1; y++) {
     for (let x = 1; x < procW - 1; x++) {
@@ -366,36 +416,87 @@ export async function analyzeInspectionImage(params: {
       const [h, s, v] = rgbToHsvOpenCV(r, g, b);
       const [, aStar, bStar] = rgbToLabOpenCV(r, g, b);
       const gMag = grad[i];
+      const lVar = localVar[i];
+      const lSharp = localSharpness[i];
+
+      if (lSharp < 4.5) bokehLowSharpCount++;
+      if (lSharp >= 10.0) verySharpCount++;
 
       if (!isExcludedSurface) {
-        // 1. Standard orange/brown rust + dark brown/ochre rough rust + specular glare rust
-        const isStandardRust = h >= 4 && h <= 25 && s >= 55 && v >= 45;
-        const isDarkBrownRust =
-          gMag > 8 && s >= 35 && aStar > 128 && bStar > 132 && v >= 30 && v <= 130;
-        const isSpecularRust =
-          gMag > 10 && (aStar > 132 || bStar > 136) && v > 180;
+        const isTrueIronRust = (r - g >= 28 && r - b >= 45 && aStar >= 132);
+        const isStandardRust = h >= 4 && h <= 25 && s >= 65 && v >= 45 && isTrueIronRust;
+        if (isStandardRust) {
+          stdRustRaw[i] = 1;
+        }
+        if (lSharp < 5.0) {
+          lowSharpCount++;
+          if (isStandardRust) lowSharpOrangeCount++;
+        } else if (lVar >= 55) {
+          highSharpCount++;
+        }
 
-        if (isStandardRust || isDarkBrownRust || isSpecularRust) {
+        const isHighChromaRust = ((h >= 4 && h <= 25 && s >= 95 && v >= 45) || aStar >= 134 || bStar >= 138) && isTrueIronRust;
+        const isDampConcrete = bStar < 127 || (aStar < 127 && bStar - aStar < 8) || s < 52 || (r - g < 22);
+        const isBeigePlaster = v > 175 && s < 85;
+        const isYellowHose = h >= 21 && h <= 35 && lVar < 150;
+
+        const isDarkBrownRust = gMag > 4 && aStar >= 130 && bStar >= 132 && v >= 30 && v <= 130 && isTrueIronRust;
+        const isOxidizedCrust = lVar >= 70 && lSharp >= 5 && s >= 25 && aStar >= 132 && bStar >= 128 && v >= 20 && v <= 140 && isTrueIronRust;
+        const isSpecularRust = gMag > 5 && (aStar > 130 || bStar > 135) && v > 170 && isTrueIronRust;
+
+        if ((isStandardRust || isDarkBrownRust || isOxidizedCrust || isSpecularRust || isHighChromaRust) && !(isDampConcrete || isBeigePlaster || isYellowHose)) {
           rustMaskRaw[i] = 1;
-          rustPixelCount++;
         }
       }
 
-      // 2. Peeling green paint / coating delamination boundary
-      if (h >= 35 && h <= 85 && s >= 30 && v >= 30 && gMag > 14) {
+      // 2. Peeling paint / coating delamination boundary or spalling cavity (require S >= 95 for paint)
+      const isGreenPaint = h >= 35 && h <= 85 && s >= 95 && v >= 40 && gMag > 20;
+      const isBluePaint = h >= 90 && h <= 150 && s >= 95 && v >= 40 && gMag > 20;
+      const isSpallingCavity = v < 80 && s < 50 && lVar > 120 && gMag > 16;
+      if (isGreenPaint || isBluePaint || isSpallingCavity) {
         greenPaintMaskRaw[i] = 1;
       }
 
-      // 3. Leakage / dark vertical streak
-      if (v < 75 && s < 60 && gMag > 4) {
+      // 3. Leakage / dark vertical streak or bright pouring water stream / wet puddle
+      const localAvg =
+        (gray[i - 1] + gray[i + 1] + gray[i - procW] + gray[i + procW]) / 4;
+      const isDarkLeak = v < 75 && s < 60 && gMag > 4;
+      const isBrightStream = v > 165 && s < 50 && localAvg < 105;
+      if (isDarkLeak || isBrightStream) {
         leakMaskRaw[i] = 1;
       }
 
-      // 4. Dark linear crack candidate (significantly darker than local neighbors)
-      const localAvg =
-        (gray[i - 1] + gray[i + 1] + gray[i - procW] + gray[i + procW]) / 4;
-      if (localAvg - gray[i] > 22 && s < 75) {
+      // 4. Dark linear crack candidate (luma < 95 with contrast delta >= 28)
+      const luma = gray[i];
+      if ((luma < 95 && localAvg - luma >= 28 && s < 65) || (localAvg - luma > 25 && s < 75)) {
         darkCrackMaskRaw[i] = 1;
+      }
+    }
+  }
+
+  // Suppress out-of-focus blurry orange-brown background bleed when strong DoF separation exists
+  if (
+    !isExcludedSurface &&
+    lowSharpCount > 0 &&
+    lowSharpOrangeCount / lowSharpCount > 0.25 &&
+    highSharpCount > totalProcPixels * 0.05
+  ) {
+    for (let i = 0; i < totalProcPixels; i++) {
+      if (stdRustRaw[i] === 1 && (localSharpness[i] < 18 || localVar[i] < 200)) {
+        rustMaskRaw[i] = 0;
+      }
+    }
+  }
+
+  // On macro close-up images with sharp foreground + bokeh background, also subtract out-of-focus
+  // pixels across all rust channels so bokeh borders never inflate COR-001 to whole frame.
+  const hasMacroBokeh =
+    bokehLowSharpCount / totalProcPixels > 0.15 &&
+    verySharpCount / totalProcPixels > 0.15;
+  if (!isExcludedSurface && hasMacroBokeh) {
+    for (let i = 0; i < totalProcPixels; i++) {
+      if (localSharpness[i] < 6.0 || localVar[i] < 60) {
+        rustMaskRaw[i] = 0;
       }
     }
   }
@@ -411,8 +512,10 @@ export async function analyzeInspectionImage(params: {
     const rustOpened = dilateBinaryMask(erodeBinaryMask(rustMaskRaw, procW, procH, 1), procW, procH, 1);
 
     const minRustPixels = Math.max(18, Math.round(totalProcPixels * 0.0006));
+    const maxRustBoxArea = totalProcPixels * 0.82;
     const rawRustBoxes = extractConnectedBoxes(rustOpened, procW, procH, minRustPixels, 6);
-    const mergedRustBoxes = mergeOverlappingBoxes(rawRustBoxes, 0.05, 8)
+    const mergedRustBoxes = mergeOverlappingBoxes(rawRustBoxes, 0.05, 8, maxRustBoxArea)
+      .filter(b => b.w * b.h <= maxRustBoxArea)
       .sort((a, b) => b.w * b.h - a.w * a.h)
       .slice(0, 8);
 
@@ -453,10 +556,13 @@ export async function analyzeInspectionImage(params: {
     });
   }
 
-  // Experimental Coating Delamination Findings (COT-*)
+  // Experimental Coating Delamination & Spalling Findings (COT-*): enforce >= 0.4% and <= 65% frame area
+  const maxCoatBoxArea = totalProcPixels * 0.65;
   const coatClosed = erodeBinaryMask(dilateBinaryMask(greenPaintMaskRaw, procW, procH, 2), procW, procH, 1);
+  const minCoatMergedArea = Math.max(120, Math.round(totalProcPixels * 0.004));
   const rawCoatBoxes = extractConnectedBoxes(coatClosed, procW, procH, Math.max(15, Math.round(totalProcPixels * 0.0005)), 6);
-  const mergedCoatBoxes = mergeOverlappingBoxes(rawCoatBoxes, 0.08, 12)
+  const mergedCoatBoxes = mergeOverlappingBoxes(rawCoatBoxes, 0.08, 12, maxCoatBoxArea)
+    .filter(box => (box.w * box.h) >= minCoatMergedArea && (box.w * box.h) <= maxCoatBoxArea && box.w >= 14 && box.h >= 14)
     .sort((a, b) => b.w * b.h - a.w * a.h)
     .slice(0, 3);
 
@@ -522,9 +628,59 @@ export async function analyzeInspectionImage(params: {
     });
   });
 
-  // Experimental Leakage Findings (LEK-*)
+  // Experimental Leakage Findings (LEK-*): reject machined thread ridges & require gravity-driven drip/pool gradient
   const rawLeakBoxes = extractConnectedBoxes(leakMaskRaw, procW, procH, 30, 5)
     .filter(b => b.h / Math.max(1, b.w) >= 2.2 && b.h >= 24)
+    .filter(b => {
+      // 1. Periodic horizontal ridge/groove check across band [b.x - padX .. b.x + b.w + padX]
+      const padX = Math.max(18, b.w * 2);
+      const x0 = Math.max(0, b.x - padX);
+      const x1 = Math.min(procW - 1, b.x + b.w + padX);
+      const colMeans: number[] = [];
+      for (let cx = x0; cx <= x1; cx++) {
+        let sum = 0;
+        for (let cy = b.y; cy < b.y + b.h; cy++) {
+          sum += gray[cy * procW + cx];
+        }
+        colMeans.push(sum / Math.max(1, b.h));
+      }
+      let prevSign = 0;
+      let reversals = 0;
+      for (let k = 1; k < colMeans.length; k++) {
+        const diff = colMeans[k] - colMeans[k - 1];
+        const sign = Math.abs(diff) > 2.0 ? (diff > 0 ? 1 : -1) : 0;
+        if (sign !== 0) {
+          if (prevSign !== 0 && sign !== prevSign) reversals++;
+          prevSign = sign;
+        }
+      }
+      if (reversals >= 4) return false;
+
+      // 2. Gravity-driven downward drip / pool profile (reject spindle-curved cylinder grooves)
+      const third = Math.max(1, Math.floor(b.h / 3));
+      const meanWidthRange = (yStart: number, yEnd: number) => {
+        let totalW = 0;
+        let rows = 0;
+        for (let cy = yStart; cy < yEnd; cy++) {
+          let rw = 0;
+          for (let cx = b.x; cx < b.x + b.w; cx++) {
+            if (leakMaskRaw[cy * procW + cx] === 1) rw++;
+          }
+          totalW += rw;
+          rows++;
+        }
+        return rows > 0 ? totalW / rows : b.w;
+      };
+      const topW = meanWidthRange(b.y, b.y + third);
+      const midW = meanWidthRange(b.y + third, Math.min(b.y + b.h, b.y + 2 * third));
+      const botW = meanWidthRange(Math.min(b.y + b.h - 1, b.y + 2 * third), b.y + b.h);
+
+      if (b.w < 12 && (b.x <= 2 || b.x + b.w >= procW - 2)) return false;
+      if (midW > topW * 1.12 && midW > botW * 1.12) return false;
+      const isBottomPool = botW >= topW * 1.25 && botW >= midW * 1.05;
+      const isDownwardTaper = topW >= botW * 1.25 && b.w >= 10 && reversals < 3;
+      return isBottomPool || isDownwardTaper;
+    })
     .sort((a, b) => b.w * b.h - a.w * a.h)
     .slice(0, 2);
 
@@ -601,14 +757,73 @@ export async function analyzeInspectionImage(params: {
     leakage: '#06b6d4'          // Cyan
   };
 
+  const bannerFont = Math.max(10, Math.round(origW * 0.022));
+  const bannerH = Math.round(bannerFont * 2.1);
+  const decColor = decision === 'CRITICAL' ? '#f43f5e' : decision === 'WARNING' ? '#f59e0b' : '#10b981';
+  const bannerText = origW < 550
+    ? `CEMENTSIGHT | ${inspectionId} | ${decision} | COR: ${corrosionPercentage}%`
+    : `CEMENTSIGHT AI  |  ${inspectionId}  |  ${decision}  |  CORROSION: ${corrosionPercentage}%  |  REGIONS: ${findings.length}`;
+
+  const placedLabels: Array<{ x: number; y: number; w: number; h: number }> = [];
+  const rectsOverlap = (
+    a: { x: number; y: number; w: number; h: number },
+    b: { x: number; y: number; w: number; h: number }
+  ) =>
+    !(
+      a.x + a.w + 4 <= b.x ||
+      b.x + b.w + 4 <= a.x ||
+      a.y + a.h + 4 <= b.y ||
+      b.y + b.h + 4 <= a.y
+    );
+
+  const maxTagY = Math.max(2, origH - bannerH - tagH - 2);
   const boxesSvg = findings
     .map(f => {
       const [bx, by, bw, bh] = f.bbox;
       const color = colorMap[f.defect_category] || '#f59e0b';
       const label = `${f.region_id} ${Math.round(f.confidence * 100)}%`;
       const tagW = Math.round(label.length * fontSize * 0.62 + padX * 2);
-      const tagY = by - tagH - 2 >= 0 ? by - tagH - 2 : by + 2;
-      const tagX = Math.max(2, Math.min(origW - tagW - 2, bx));
+
+      const baseTagX = Math.max(2, Math.min(origW - tagW - 2, bx));
+      const baseTagY = by - tagH - 2 >= 2 ? by - tagH - 2 : Math.min(maxTagY, by + 2);
+
+      // Multi-candidate positions: above, inside-top, below, left, right, plus staggered grid steps
+      const candidates: Array<{ x: number; y: number }> = [
+        { x: baseTagX, y: baseTagY }, // above
+        { x: baseTagX, y: by + 2 }, // inside-top
+        { x: baseTagX, y: by + bh + 2 <= maxTagY ? by + bh + 2 : baseTagY }, // below
+        { x: Math.max(2, bx - tagW - 4), y: by }, // left
+        { x: Math.max(2, Math.min(origW - tagW - 2, bx + bw + 4)), y: by } // right
+      ];
+
+      for (let step = 1; step <= 14; step++) {
+        candidates.push({ x: baseTagX, y: baseTagY - step * (tagH + 4) });
+        candidates.push({ x: baseTagX, y: baseTagY + step * (tagH + 4) });
+        candidates.push({ x: Math.max(2, baseTagX - step * 14), y: baseTagY });
+        candidates.push({ x: Math.min(origW - tagW - 2, baseTagX + step * 14), y: baseTagY });
+      }
+
+      let tagX = baseTagX;
+      let tagY = baseTagY;
+      let placed = false;
+
+      for (const cand of candidates) {
+        const cx = Math.max(2, Math.min(origW - tagW - 2, cand.x));
+        const cy = Math.max(2, Math.min(maxTagY, cand.y));
+        if (!placedLabels.some(occ => rectsOverlap({ x: cx, y: cy, w: tagW, h: tagH }, occ))) {
+          tagX = cx;
+          tagY = cy;
+          placed = true;
+          break;
+        }
+      }
+
+      if (!placed) {
+        tagX = baseTagX;
+        tagY = Math.min(maxTagY, baseTagY + placedLabels.length * (tagH + 4));
+      }
+
+      placedLabels.push({ x: tagX, y: tagY, w: tagW, h: tagH });
 
       return `
         <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="${strokeWidth}" rx="3" />
@@ -617,11 +832,6 @@ export async function analyzeInspectionImage(params: {
       `;
     })
     .join('\n');
-
-  const bannerFont = Math.max(12, Math.round(Math.min(origW, origH) * 0.02));
-  const bannerH = Math.round(bannerFont * 2.1);
-  const decColor = decision === 'CRITICAL' ? '#f43f5e' : decision === 'WARNING' ? '#f59e0b' : '#10b981';
-  const bannerText = `CEMENTSIGHT AI  |  ${inspectionId}  |  ${decision}  |  CORROSION: ${corrosionPercentage}%  |  REGIONS: ${findings.length}`;
 
   const svgOverlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${origW}" height="${origH}" viewBox="0 0 ${origW} ${origH}">
     ${boxesSvg}

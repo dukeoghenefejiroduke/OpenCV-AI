@@ -363,7 +363,7 @@ class MultiHazardOrchestrator:
         # Reassign globally unique sequential IDs across all final fused findings (v5a: COR-001 to COR-008, never repeated)
         for idx, f in enumerate(fused_findings):
             cat = f.get("defect_category", "corrosion")
-            prefix = "COR" if cat == "corrosion" else ("LEAK" if cat == "leakage" else ("CRK" if cat == "crack" else "DEF"))
+            prefix = "COR" if cat == "corrosion" else ("LEAK" if cat == "leakage" else ("CRK" if cat == "crack" else ("COT" if cat == "coating_damage" else "DEF")))
             f["region_id"] = f"{prefix}-{idx+1:03d}"
 
         if "corrosion_detector" in results:
@@ -414,6 +414,58 @@ class MultiHazardOrchestrator:
                 "insulation_detector": (129, 185, 16),     # Emerald/Green (#10b981)
                 "material_buildup_detector": (0, 255, 255) # Yellow
             }
+            def _draw_staggered_label(img_buf, label_text, bx, by, bw, bh, box_color, text_color, occupied_rects):
+                h_i, w_i = img_buf.shape[:2]
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5
+                thickness = 1
+                (tw, th), baseline = cv2.getTextSize(label_text, font, font_scale, thickness)
+                lw = tw + 10
+                lh = th + baseline + 8
+
+                base_lx = max(2, min(w_i - lw - 2, bx))
+                base_ly = by - lh - 2 if (by - lh - 2) >= 2 else min(h_i - lh - 2, by + 2)
+
+                candidates = [
+                    (base_lx, base_ly), # above
+                    (base_lx, by + 2), # inside-top
+                    (base_lx, by + bh + 2 if (by + bh + lh + 2) < h_i else by - lh - 2), # below
+                    (max(2, bx - lw - 4), by), # left
+                    (max(2, min(w_i - lw - 2, bx + bw + 4)), by) # right
+                ]
+
+                for step in range(1, 15):
+                    candidates.append((base_lx, base_ly - step * (lh + 4)))
+                    candidates.append((base_lx, base_ly + step * (lh + 4)))
+                    candidates.append((max(2, base_lx - step * 14), base_ly))
+                    candidates.append((min(w_i - lw - 2, base_lx + step * 14), base_ly))
+
+                def _intersects(r1, r2):
+                    return not (
+                        r1[0] + r1[2] + 3 <= r2[0] or
+                        r2[0] + r2[2] + 3 <= r1[0] or
+                        r1[1] + r1[3] + 3 <= r2[1] or
+                        r2[1] + r2[3] + 3 <= r1[1]
+                    )
+
+                lx, ly = base_lx, base_ly
+                chosen = False
+                for cand_lx, cand_ly in candidates:
+                    cl_x = max(2, min(w_i - lw - 2, cand_lx))
+                    cl_y = max(2, min(h_i - lh - 2, cand_ly))
+                    if not any(_intersects((cl_x, cl_y, lw, lh), occ) for occ in occupied_rects):
+                        lx, ly = cl_x, cl_y
+                        chosen = True
+                        break
+
+                if not chosen:
+                    lx, ly = base_lx, min(h_i - lh - 2, base_ly + len(occupied_rects) * (lh + 4))
+
+                occupied_rects.append((lx, ly, lw, lh))
+                cv2.rectangle(img_buf, (lx, ly), (lx + lw, ly + lh), box_color, -1)
+                cv2.putText(img_buf, label_text, (lx + 5, ly + th + 3), font, font_scale, text_color, thickness, cv2.LINE_AA)
+
+            placed_labels = []
             for f in fused_findings:
                 bbox = f.get("bbox")
                 det_id = f.get("detector_id", "")
@@ -422,7 +474,7 @@ class MultiHazardOrchestrator:
                     x, y, w, h = [int(v) for v in bbox]
                     cv2.rectangle(annotated_img, (x, y), (x + w, y + h), color, 2)
                     region_id = f.get("region_id", "REG")
-                    cv2.putText(annotated_img, region_id, (x, max(12, y - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+                    _draw_staggered_label(annotated_img, region_id, x, y, w, h, color, (15, 23, 42), placed_labels)
             cv2.imwrite(output_annotated_path, annotated_img)
 
             # Also generate mask overlay image if Thin Corrosion2 or requested
@@ -440,13 +492,14 @@ class MultiHazardOrchestrator:
                 overlay = decoded_img.copy()
                 overlay[raw_mask > 0] = (36, 191, 251)
                 cv2.addWeighted(overlay, 0.4, mask_vis, 0.6, 0, mask_vis)
+                placed_mask_labels = []
                 for f in fused_findings:
                     bbox = f.get("bbox")
                     region_id = f.get("region_id", "REG")
                     if bbox and len(bbox) == 4:
                         x, y, w, h = [int(v) for v in bbox]
                         cv2.rectangle(mask_vis, (x, y), (x + w, y + h), (0, 0, 255), 1)
-                        cv2.putText(mask_vis, region_id, (x, max(12, y - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        _draw_staggered_label(mask_vis, region_id, x, y, w, h, (0, 0, 255), (255, 255, 255), placed_mask_labels)
                 mask_out_path = "mask_Thin_Corrosion2.jpg"
                 cv2.imwrite(mask_out_path, mask_vis)
 

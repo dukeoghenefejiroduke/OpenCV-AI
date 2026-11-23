@@ -74,3 +74,80 @@ class RiskFusionEngine:
             "dispatched": False,  # Strictly NO dispatching / autonomous actions
             "contributions": contributions
         }
+
+    @staticmethod
+    def evaluate_predictive_maintenance(
+        visual_report: Optional[Dict[str, Any]] = None,
+        anomalies: Optional[List[Dict[str, Any]]] = None,
+        corrosion_history: Optional[List[Any]] = None,
+        provenance: str = "simulated",
+        human_approval: bool = False,
+        is_real_asset: bool = True,
+        critical_threshold: float = 10.0,
+    ) -> Dict[str, Any]:
+        """Combines rule-based visual/telemetry fusion with degradation velocity forecasting."""
+        from app.forecasting import calculate_degradation_velocity, project_time_to_critical
+
+        visual_report = visual_report or {}
+        anomalies = anomalies or []
+
+        # Simulation firewall: simulated anomalies never elevate a real asset to CRITICAL or alter real priority
+        if is_real_asset and provenance == "simulated":
+            effective_anomalies: List[Dict[str, Any]] = []
+            firewall_note = "Simulation firewall active: simulated anomalies isolated from real asset risk escalation."
+        else:
+            effective_anomalies = [a for a in anomalies if not (is_real_asset and a.get("provenance") == "simulated")]
+            firewall_note = None
+
+        base = RiskFusionEngine.evaluate_risk(
+            visual_report=visual_report,
+            anomalies=effective_anomalies,
+            provenance=provenance if not (is_real_asset and provenance == "simulated") else "real",
+            human_approval=human_approval,
+            is_real_asset=is_real_asset,
+        )
+
+        contributions = list(base["contributions"])
+        if firewall_note:
+            contributions.append(f"Rule [SIMULATION_FIREWALL]: {firewall_note}")
+
+        current_corr = float(visual_report.get("corrosion_percentage", 0.0) or 0.0)
+        history_pts = corrosion_history or []
+        daily_rate = calculate_degradation_velocity(history_pts)
+        days_to_critical = project_time_to_critical(current_corr, daily_rate, critical_threshold=critical_threshold)
+
+        confirmed_visual = bool(visual_report.get("confirmed", False))
+        anomaly_count = len(effective_anomalies)
+        velocity_escalated = False
+
+        if confirmed_visual and daily_rate > 0.0 and days_to_critical is not None and days_to_critical <= 14.0:
+            velocity_escalated = True
+            if base["risk_level"] in ("LOW", "MEDIUM"):
+                base["risk_level"] = "HIGH"
+                base["approval_required"] = True
+            contributions.append(
+                f"Rule [VELOCITY_ADVISORY]: Corrosion rate {daily_rate:.3f}%/day projects {days_to_critical} days to {critical_threshold}% critical threshold."
+            )
+        elif len(history_pts) < 3:
+            contributions.append(
+                "Rule [FORECAST_INSUFFICIENT_DATA]: Fewer than 3 dated observations; trend projection withheld."
+            )
+
+        if confirmed_visual and anomaly_count >= 2 and base["risk_level"] == "MEDIUM":
+            base["risk_level"] = "HIGH"
+            base["approval_required"] = True
+            contributions.append(
+                f"Rule [CORRELATED_MULTIMODAL]: {anomaly_count} persistent telemetry anomalies corroborate confirmed visual defect."
+            )
+
+        return {
+            **base,
+            "contributions": contributions,
+            "degradation_velocity_pct_per_day": round(daily_rate, 4),
+            "estimated_days_to_critical": days_to_critical,
+            "velocity_escalated": velocity_escalated,
+            "anomaly_count": anomaly_count,
+            "provenance": provenance,
+            "screening_disclaimer": "Deterministic screening fusion estimate only; not a certified physical RUL or autonomous dispatch trigger.",
+        }
+

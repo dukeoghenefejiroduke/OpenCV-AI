@@ -112,18 +112,18 @@ Structured inspection + proposed action
 
 Evaluated against the real industrial test image (`data/pipe_corrosion.jpg`):
 
-| Metric | Result |
-| :--- | :--- |
-| **Image** | `data/pipe_corrosion.jpg` |
-| **Dimensions** | `1920x1080` |
-| **Corrosion estimate** | `6.56%` *(computer-vision screening estimate, not certified physical measurement)* |
-| **Detected regions** | `11` |
-| **Vision recommendation** | `WARNING` |
-| **Agent decision** | `WARNING` |
-| **Proposed action** | Routine maintenance inspection and ongoing monitoring |
-| **Approval required** | `No` |
+| Metric | Python OpenCV (`vision/inspection.py`) | Node.js Sharp Engine (`visionAnalyzer.ts`) |
+| :--- | :--- | :--- |
+| **Image** | `data/pipe_corrosion.jpg` | `data/pipe_corrosion.jpg` |
+| **Dimensions** | `1920x1080` | `1920x1080` |
+| **Corrosion estimate** | `9.3%` *(CV screening estimate)* | `9.74%` *(CV screening estimate)* |
+| **Detected regions** | `4` authoritative (`COR-001`..`COR-004`) | `3` authoritative (`COR-001`..`COR-003`) + `3` experimental coating (`COT-001`..`COT-003`) |
+| **Vision recommendation** | `WARNING` | `WARNING` |
+| **Agent decision** | `WARNING` | `WARNING` |
+| **Proposed action** | Routine maintenance inspection and ongoing monitoring | Routine maintenance inspection and ongoing monitoring |
+| **Approval required** | `No` | `No` |
 
-**Test Suite Summary:** `208/208` automated tests passed successfully across all inspection, agent, multi-hazard, quality gate, robustness, workspace, security, and validation suites.
+**Test Suite Summary:** `216/216` automated Python `pytest` checks passing across inspection, agent, multi-hazard, quality gate, robustness, workspace, DeltaTwin predictive fusion, security, and validation suites, plus clean `tsc --noEmit` TypeScript verification for the web server.
 
 ---
 
@@ -163,30 +163,41 @@ CementSight has been rigorously tested across 12 robustness and failure-case cat
 
 ---
 
-## Reproduce Locally
+## Setup & Reproduce Locally
 
-Run the following commands from the repository root:
+### 1. Web Dashboard & Node.js API Server (Port 3000)
+
+Requires **Node.js 22+**:
 
 ```bash
-# 1. Install dependencies
+# 1. Install Node dependencies
+npm install
+
+# 2. Type-check and build frontend assets
+npm run lint
+npm run build
+
+# 3. Start the Express + Sharp inspection server on http://0.0.0.0:3000
+npm run dev
+```
+
+Open `http://localhost:3000/` (served from `app/dashboard.html`) to upload pipe/equipment imagery, toggle **Experimental Findings**, confirm/reject detections (`COR-*` / `COT-*`), create linked maintenance work orders, and export HTML or CSV inspection reports.
+
+### 2. Python OpenCV Vision Pipeline & Test Suite
+
+Requires **Python 3.11+** with OpenCV, NumPy, and `pytest`:
+
+```bash
+# 1. Install Python dependencies (or use distro packages python3-opencv python3-numpy python3-pytest)
 pip install -r requirements.txt
 
-# 2. Run vision tests
-PYTHONPATH=. python3 tests/test_inspection.py
+# 2. Run the full automated test suite
+pytest -v
 
-# 3. Run agent decision tests
-PYTHONPATH=. python3 tests/test_agent_decision.py
-
-# 4. Run robustness tests
-PYTHONPATH=. python3 tests/test_robustness.py
-
-# 5. Run input validation tests
-PYTHONPATH=. python3 tests/test_validation.py
-
-# 6. Run evaluation harness
+# 3. Run the evaluation harness
 PYTHONPATH=. python3 tools/evaluate.py
 
-# 7. Run CLI against real industrial test image
+# 4. Run CLI against real industrial test image
 PYTHONPATH=. python3 app/main.py data/pipe_corrosion.jpg
 ```
 
@@ -196,11 +207,18 @@ PYTHONPATH=. python3 app/main.py data/pipe_corrosion.jpg
 
 ```
 cementsight-ai/
+├── deltaTwinEngine.ts       # Seeded 4-metric AR(1) telemetry simulator, Z-score/EWMA/CUSUM detectors, DAG twin & risk fusion (TS)
+├── server.ts                # Express + Sharp web API, /api/v2 DeltaTwin routes & atomic node_state.json persistence
+├── visionAnalyzer.ts        # Node.js Sharp corrosion & coating delamination detector + SVG box renderer
 ├── agent/
 │   └── decision.py          # Deterministic rule-based agentic decision layer
+├── telemetry/               # Python telemetry schema & seeded AR(1) fault simulator
+├── anomaly/                 # Python transparent Z-score (Median/MAD), EWMA & CUSUM anomaly detectors
+├── twin/                    # Python DAG Digital Twin network & health propagation engine
+├── risk/                    # Unified visual + telemetry predictive risk fusion & simulation firewall
 ├── app/
 │   ├── cmms.py              # CMMS work-order integration module
-│   ├── dashboard.html       # Web dashboard interface
+│   ├── dashboard.html       # Offline Engineering Intelligence web dashboard (Tabs 1–8)
 │   ├── digital_twin.py      # Digital twin asset status mapping
 │   ├── forecasting.py       # Degradation velocity & time-to-critical projections
 │   ├── main.py              # Integrated CLI workflow application
@@ -217,30 +235,9 @@ cementsight-ai/
 │   ├── spalling.py          # Spalling / surface defect detector
 │   ├── stream.py            # Streaming inspection pipeline
 │   └── surface_defect_detector.py # Surface defect screening detector
-├── tests/
-│   ├── test_advanced_features.py
-│   ├── test_agent_decision.py
-│   ├── test_cross_hazard_benchmark.py
-│   ├── test_dashboard.py
-│   ├── test_diagnostics.py
-│   ├── test_field_validation.py
-│   ├── test_inspection.py
-│   ├── test_insulation_detector.py
-│   ├── test_leakage_detector.py
-│   ├── test_measurement_reliability.py
-│   ├── test_multi_hazard.py
-│   ├── test_robustness.py
-│   ├── test_safety_isolation.py
-│   ├── test_surface_defect_detector.py
-│   └── test_validation.py
-├── tools/
-│   ├── evaluate.py          # Reproducible evaluation harness script
-│   ├── generate_diagrams.py # Diagram generator script
-│   └── validate_dataset.py  # Dataset validation utility
-├── data/
-│   ├── pipe_corrosion.jpg   # Real industrial test image (1920x1080)
-│   ├── field_validation/    # Field validation dataset & manifest
-│   └── outputs/             # Generated evaluation reports and artifacts
+├── tests/                   # Automated pytest regression & integration suites (incl. test_deltatwin_unified.py)
+├── tools/                   # Python evaluation harness, optional Flask server, dataset validation
+├── data/                    # Test images, workspace state (node_state.json), sim JSONL sandbox & backups
 ├── lambda_handler.py        # AWS Lambda serverless function adapter
 ├── requirements.txt         # Local development dependencies
 ├── requirements-lambda.txt  # AWS Lambda deployment dependencies
@@ -251,11 +248,13 @@ cementsight-ai/
 
 ## Validation Status & Known Limitations
 
+- **Atomic Workspace Persistence & Simulation Firewall:** The primary Express server (`server.ts` on port 3000) persists real assets, inspections, human review statuses, work orders, and `[IMPORTED_REAL]` CSV telemetry atomically to `data/workspace/node_state.json` (with snapshot backup/restore under `data/backups/`). Synthetic telemetry simulations are strictly isolated to `data/simulation/node_telemetry_sim.jsonl` (5,000-record cap, `SIM-` prefix, `[SIMULATED]` badge) and blocked from altering real asset records or risk priority.
+- **Dual Vision Engines:** The Node web server uses `visionAnalyzer.ts` (`sharp` + TypeScript pixel analysis) while the Python CLI/Lambda/test pipelines use `vision/inspection.py` + `vision/orchestrator.py` (OpenCV). Minor bounding-box and area-percentage variations (`9.3%` in Python OpenCV vs `9.74%` in Node/Sharp on `data/pipe_corrosion.jpg`) reflect algorithmic differences between the two runtimes.
+- **Experimental Coating & Secondary Detectors:** Coating delamination (`COT-*`), cracks, blistering/spalling, leakage, and insulation detectors are strictly **experimental screening signals** requiring human confirmation (`experimental: true`). `MultiHazardOrchestrator` keeps 7 registered detector summaries in Python; `COT-*` coating boundaries are exposed directly in the web server's `visionAnalyzer.ts` pipeline and CSV/HTML reports.
 - **Crack Detection:** Evaluated on the TUBERS exploratory water-pipe dataset. Results show no demonstrated signal (ROC-AUC 0.3685, 95% CI 0.25–0.53). Crack findings are strictly categorized as "candidate - human review required" and do not contribute to priority or severity scoring by default (`crack_enabled_for_priority=False`).
 - **Corrosion Screening:** Primary product focus, evaluated with strict dataset manifests, SHA-256 integrity checks, and sensitivity/specificity metrics with Wilson score confidence intervals.
-- **Scene Sensitivity:** Classical computer vision algorithms are sensitive to extreme lighting variations, reflections, and complex background clutter.
-- **Screening Estimate:** Corrosion percentages represent computer-vision screening estimates rather than certified physical metallurgical measurements.
-- **Human-in-the-Loop:** CRITICAL operational findings strictly require human supervisor review and approval, authenticated with reviewer names and immutable append-only audit trails.
+- **Scene Sensitivity:** Classical computer vision thresholds (CIELAB + local texture variance + foreground Laplacian sharpness gating) are tuned to suppress blurry warm-toned backgrounds, but remain sensitive to extreme lighting variations, specular glare, and complex in-focus clutter.
+- **Screening Estimate & Safety:** Corrosion percentages, statistical telemetry alerts, and unified risk fusion scores represent deterministic screening estimates rather than certified physical metallurgical or RUL measurements. Work order creation logs records locally inside the workspace (`dispatched: false`) and does **not** dispatch commands to external enterprise CMMS systems.
 
 ---
 
@@ -265,7 +264,7 @@ cementsight-ai/
 - Public competition demonstration web endpoint.
 - Broadened real-world validation dataset across diverse industrial equipment.
 - Expansion to additional industrial defect classes (e.g., cracking, spalling).
-- Enriched integration connectors for enterprise maintenance management systems with explicit human confirmation.
+- Persistent database backing and enterprise CMMS connectors with explicit human confirmation.
 
 ---
 
@@ -280,14 +279,19 @@ CementSight is engineered around:
 
 ---
 
-## Inspection Workspace (Experimental)
+## Inspection Workspace & DeltaTwin Intelligence Routes
 
-CementSight includes an offline, local inspection workspace (`workspace/`) and API routes (`/api/workspace/*`) providing:
-- SQLite-backed asset registry and inspection tracking
-- Multi-hazard orchestrator execution per inspection
-- Finding review workflows (`confirmed`, `rejected`, `needs_followup`)
-- Multi-factor maintenance prioritization and risk scoring
-- Standalone HTML inspection report generation
+The Express workspace (`server.ts`) and optional Python server (`tools/server.py`) expose `/api/workspace/*` and `/api/v2/*` endpoints providing:
+- Asset registry (`GET/POST /api/workspace/assets`, `GET /api/workspace/asset/:id`)
+- Inspection upload & live pixel analysis (`POST /api/workspace/inspection`, `GET /api/workspace/image/:id`)
+- Finding review workflows (`POST /api/workspace/review/:findingId` supporting `confirmed`, `rejected`, `needs_followup`)
+- Maintenance work-order linking (`GET/POST /api/workspace/maintenance`, `PUT /api/workspace/maintenance/:id`)
+- Standalone HTML & CSV report exports (`GET /api/workspace/report/:id`, `GET /api/export-report/:id?format=html`, `GET /api/workspace/export-csv`)
+- Workspace snapshot backup & path-confined restore (`POST /api/workspace/backup`, `POST /api/workspace/restore`)
+- Seeded 4-metric telemetry simulator & statistical detectors (`POST /api/v2/telemetry/simulate`, `GET /api/v2/telemetry/:assetId`)
+- Real CSV telemetry import with provenance verification (`POST /api/v2/telemetry/import`, `POST /api/v2/telemetry/upload`)
+- DAG Digital Twin topology & propagated health (`GET/POST /api/v2/twin/network`)
+- Unified predictive risk fusion & Engineering Intelligence overview (`POST /api/v2/risk/fuse`, `GET /api/v2/intelligence/overview`)
 
 ---
 

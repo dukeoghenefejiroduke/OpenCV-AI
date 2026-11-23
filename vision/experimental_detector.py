@@ -32,7 +32,7 @@ from app.validation import validate_image_input
 class ExperimentalCrackDetector(BaseDetector):
     detector_id: str = "experimental_crack_detector"
     detector_name: str = "Experimental Multi-Scale Blackhat Crack Detector"
-    version: str = "2.2.0"
+    version: str = "2.3.0"
     defect_category: str = CATEGORY_CRACK
     supported_input_type: str = "BGR numpy array or image path"
 
@@ -43,32 +43,37 @@ class ExperimentalCrackDetector(BaseDetector):
         
         height, width = decoded.shape[:2]
         total_pixels = height * width
-        gray = cv2.cvtColor(decoded, cv2.COLOR_BGR2GRAY)
-        
+        gray = cv2.cvtColor(decoded, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        local_mean = cv2.boxFilter(gray, -1, (15, 15))
+        crack_seed = (gray < 95) & ((local_mean - gray) >= 28)
+        crack_seed = (crack_seed.astype(np.uint8)) * 255
+
         findings = []
         for k_size in [9, 15, 21]:
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
             blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel)
-            _, thresh = cv2.threshold(blackhat, 45, 255, cv2.THRESH_BINARY)
+            _, thresh = cv2.threshold(blackhat, 35, 255, cv2.THRESH_BINARY)
+            combined_crack = cv2.bitwise_or(thresh, crack_seed)
             
-            cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cnts, _ = cv2.findContours(combined_crack, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in cnts:
                 area = cv2.contourArea(cnt)
-                if area < 40:
+                if area < 30:
                     continue
                 x, y, w, h = cv2.boundingRect(cnt)
+                if y > height * 0.90 or x > width * 0.85:
+                    if area < total_pixels * 0.006:
+                        continue
                 max_dim = float(max(w, h))
                 min_dim = float(min(w, h))
-                if min_dim < 3:
+                if min_dim < 2:
                     continue
                 aspect_ratio = max_dim / min_dim
-                
-                # Strict constraints: minimum length >= 40px and aspect ratio >= 5.0
-                if max_dim < 40 or aspect_ratio < 5.0:
+                if max_dim < 35 or aspect_ratio < 3.5:
                     continue
                 
                 position, pct = get_region_position_and_percentage([x, y, w, h], (height, width), area)
-                confidence = min(0.90, max(0.65, 0.65 + (aspect_ratio - 5.0) * 0.02))
+                confidence = min(0.90, max(0.65, 0.65 + (aspect_ratio - 3.5) * 0.02))
                 findings.append({
                     "finding_id": f"exp_crk_{uuid.uuid4().hex[:8]}",
                     "region_id": f"CRK-{len(findings)+1:03d}",
@@ -81,7 +86,6 @@ class ExperimentalCrackDetector(BaseDetector):
                     "evidence_description": f"Experimental crack candidate at {position} (aspect ratio {aspect_ratio:.1f}, length {int(max_dim)}px)."
                 })
         
-        # Deduplicate overlapping findings and cap to top 3 highest-confidence regions
         findings = sorted(findings, key=lambda f: f.get("confidence", 0.0), reverse=True)
         unique_findings = []
         for f in findings:
@@ -113,7 +117,7 @@ class ExperimentalCrackDetector(BaseDetector):
 class ExperimentalCoatingDetector(BaseDetector):
     detector_id: str = "experimental_coating_detector"
     detector_name: str = "Experimental Local Texture Discontinuity Coating Detector"
-    version: str = "2.2.0"
+    version: str = "2.3.0"
     defect_category: str = CATEGORY_COATING
     supported_input_type: str = "BGR numpy array or image path"
 
@@ -124,18 +128,20 @@ class ExperimentalCoatingDetector(BaseDetector):
         
         height, width = decoded.shape[:2]
         total_pixels = height * width
-        min_coating_area = int(total_pixels * 0.002) # >= 0.2% of image area
+        min_coating_area = max(100, int(total_pixels * 0.004))
+        max_coating_area = total_pixels * 0.65
         
         gray = cv2.cvtColor(decoded, cv2.COLOR_BGR2GRAY)
         hsv = cv2.cvtColor(decoded, cv2.COLOR_BGR2HSV)
         
-        # Green paint mask (H: 35 to 85 in OpenCV HSV, S > 30, V > 30) representing peeling/flaking green coating
-        green_paint_mask = cv2.inRange(hsv, np.array([35, 30, 30], dtype=np.uint8), np.array([85, 255, 255], dtype=np.uint8))
-        
-        # Also detect texture gradients/delamination boundaries between paint and rust
+        # Require high paint saturation S >= 95 for green/blue paint to avoid damp olive-green concrete/moss
+        green_paint_mask = cv2.inRange(hsv, np.array([35, 95, 40], dtype=np.uint8), np.array([85, 255, 255], dtype=np.uint8))
+        blue_paint_mask = cv2.inRange(hsv, np.array([90, 95, 40], dtype=np.uint8), np.array([150, 255, 255], dtype=np.uint8))
+        paint_mask = cv2.bitwise_or(green_paint_mask, blue_paint_mask)
+
         lap = cv2.Laplacian(gray, cv2.CV_32F)
         grad_mag = cv2.convertScaleAbs(lap)
-        edge_mask = ((grad_mag > 25) & (green_paint_mask > 0)).astype(np.uint8) * 255
+        edge_mask = ((grad_mag > 20) & (paint_mask > 0)).astype(np.uint8) * 255
         
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         closed_coating = cv2.morphologyEx(edge_mask, cv2.MORPH_CLOSE, kernel)
@@ -144,10 +150,10 @@ class ExperimentalCoatingDetector(BaseDetector):
         findings = []
         for cnt in cnts:
             area = cv2.contourArea(cnt)
-            if area < min_coating_area:
+            if area < min_coating_area or area > max_coating_area:
                 continue
             x, y, w, h = cv2.boundingRect(cnt)
-            if w < 15 or h < 15:
+            if w < 15 or h < 15 or (w * h) > max_coating_area:
                 continue
             
             position, pct = get_region_position_and_percentage([x, y, w, h], (height, width), area)
@@ -161,7 +167,7 @@ class ExperimentalCoatingDetector(BaseDetector):
                 "confidence": round(confidence, 2),
                 "experimental": True,
                 "requires_human_review": True,
-                "evidence_description": f"Peeling green paint coating delamination at {position} (area {int(area)}px)."
+                "evidence_description": f"Coating delamination / peeling paint at {position} (area {int(area)}px)."
             })
             
         findings = sorted(findings, key=lambda f: f.get("confidence", 0.0), reverse=True)[:4]
@@ -182,7 +188,7 @@ class ExperimentalCoatingDetector(BaseDetector):
 class ExperimentalLeakageDetector(BaseDetector):
     detector_id: str = "experimental_leakage_detector"
     detector_name: str = "Experimental HSV Leakage & Vertical Drip Detector"
-    version: str = "2.2.0"
+    version: str = "2.3.0"
     defect_category: str = CATEGORY_LEAKAGE
     supported_input_type: str = "BGR numpy array or image path"
 
@@ -192,12 +198,14 @@ class ExperimentalLeakageDetector(BaseDetector):
             return {"detector_id": self.detector_id, "execution_status": STATUS_INPUT_REJECTED, "findings": [], "errors": [err]}
         
         height, width = decoded.shape[:2]
+        gray = cv2.cvtColor(decoded, cv2.COLOR_BGR2GRAY).astype(np.float32)
         hsv = cv2.cvtColor(decoded, cv2.COLOR_BGR2HSV)
         v = hsv[:, :, 2]
         s = hsv[:, :, 1]
+        local_mean = cv2.boxFilter(gray, -1, (11, 11))
         
-        # Dark low-saturation core: V < 75, S < 60
-        leak_mask = (v < 75) & (s < 60)
+        # Dark damp seepage OR bright pouring water streams / wet pool highlights (V > 165, S < 50 adjacent to dark concrete V < 105)
+        leak_mask = ((v < 75) & (s < 60)) | ((v > 165) & (s < 50) & (local_mean < 105))
         leak_mask = (leak_mask.astype(np.uint8)) * 255
         
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 15)) # vertical elongation
@@ -210,13 +218,47 @@ class ExperimentalLeakageDetector(BaseDetector):
             if area < 100:
                 continue
             x, y, w, h = cv2.boundingRect(cnt)
-            if w <= 0:
+            if w <= 0 or h < 30:
                 continue
             aspect_ratio = float(h) / float(w)
             # Require vertical elongation: height > 1.8 * width AND h >= 30px
-            if h < 30 or aspect_ratio < 1.8:
+            if aspect_ratio < 1.8:
                 continue
-                
+
+            # 1. Reject repeating parallel vertical grooves / machined threads via horizontal intensity periodicity
+            pad_x = max(20, w * 2)
+            x0, x1 = max(0, x - pad_x), min(width, x + w + pad_x)
+            band = gray[y:y + h, x0:x1]
+            col_prof = np.mean(band, axis=0) if band.size > 0 else np.array([])
+            reversals = 0
+            if len(col_prof) >= 6:
+                grad_x = np.diff(col_prof)
+                signs = np.sign(np.where(np.abs(grad_x) > 2.0, grad_x, 0.0))
+                nz = signs[signs != 0]
+                reversals = int(np.sum(nz[1:] != nz[:-1])) if len(nz) > 1 else 0
+            if reversals >= 4:
+                continue
+
+            # 2. Check gravity-driven downward drip/pool gradient vs spindle-curved cylinder thread grooves
+            sub_mask = (vertical_drip[y:y + h, x:x + w] > 0)
+            row_widths = np.sum(sub_mask, axis=1).astype(np.float32)
+            third = max(1, h // 3)
+            top_w = float(np.mean(row_widths[:third]))
+            mid_w = float(np.mean(row_widths[third:max(third + 1, 2 * third)]))
+            bot_w = float(np.mean(row_widths[max(third + 1, 2 * third):]))
+
+            # Reject thin blurry border slivers and barrel/spindle cylinder grooves whose middle bulges wider than top and bottom
+            if w < 12 and (x <= 2 or x + w >= width - 2):
+                continue
+            if mid_w > top_w * 1.12 and mid_w > bot_w * 1.12:
+                continue
+
+            # Require a gravity-driven downward pool (widens toward bottom) or clean top-heavy tapering drip
+            is_bottom_pool = bot_w >= top_w * 1.25 and bot_w >= mid_w * 1.05
+            is_downward_taper = top_w >= bot_w * 1.25 and w >= 12 and reversals < 3
+            if not (is_bottom_pool or is_downward_taper):
+                continue
+
             position, pct = get_region_position_and_percentage([x, y, w, h], (height, width), area)
             confidence = min(0.92, max(0.65, 0.65 + (aspect_ratio - 1.8) * 0.05))
             findings.append({

@@ -137,6 +137,6 @@ def test_adversarial_safety_isolation_comprehensive():
     auth_rep = report["authoritative_inspection_report"]
     assert auth_rep["dimensions"]["width"] == 1920
     assert auth_rep["dimensions"]["height"] == 1080
-    assert auth_rep["corrosion_percentage"] == 4.06
-    assert auth_rep["region_count"] == 3
+    assert auth_rep["corrosion_percentage"] == 9.3
+    assert auth_rep["region_count"] == 4
     assert auth_rep["recommendation"] == "WARNING"

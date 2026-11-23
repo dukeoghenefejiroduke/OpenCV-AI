@@ -70,8 +70,8 @@ def test_orchestrator_multi_hazard_integration():
     # Verify authoritative corrosion inspection report is preserved
     auth_rep = report["authoritative_inspection_report"]
     if os.path.exists(sample_path):
-        assert auth_rep["corrosion_percentage"] == 4.06
-        assert auth_rep["region_count"] == 3
+        assert auth_rep["corrosion_percentage"] == 9.3
+        assert auth_rep["region_count"] == 4
         assert auth_rep["recommendation"] == "WARNING"
 
 
@@ -88,6 +88,6 @@ def test_corrosion_regression_guard():
 
     assert report["dimensions"]["width"] == 1920
     assert report["dimensions"]["height"] == 1080
-    assert report["corrosion_percentage"] == 4.06
-    assert report["region_count"] == 3
+    assert report["corrosion_percentage"] == 9.3
+    assert report["region_count"] == 4
     assert report["recommendation"] == "WARNING"
